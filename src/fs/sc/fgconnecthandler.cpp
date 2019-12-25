@@ -102,7 +102,7 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
     return false;
   }
 
-  QString retval = "09:32:05;3.564416;763.517456;2.513103;150.000000;26.485292;30.458834;Piper PA28-161 Warrior II (160hp);PA28-161-160;50.0742416382;19.8020534515;347.994141;342.540955;0.000000;246.930466;0.000000;0.000000;0.000000;9.981371";
+  QString retval = "2019-12-26T09:27:49;7200;3.564416;763.517456;2.513103;150.000000;26.924566;30.476448;39.534885;238.000000;5.453534;28949.210938;354.546478;347.994141;Piper PA28-161 Warrior II (160hp);PA28-161-160;50.0742416382;19.8020534515;347.994141;342.540619;0.000000;229.615570;0.004633;0.004734;0.000007;-12.254924";
   QStringList pieces = retval.split(";");
 
   if (pieces.size() == 1) {
@@ -110,8 +110,10 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
   }
 
   int index = 0;
-  //      <name>--tstamp--</name>
-  QString hourminutesecond = pieces.at(index++);
+  //      <name>2019-12-25T09:43:49</name>
+  QString timegmt = pieces.at(index++);
+  //      <name>7200</name>
+  int timeLocalOffset = pieces.at(index++).toInt();
   //      <name>altitudeAboveGroundFt = 0.f</name>
   float altitudeAboveGroundFt = pieces.at(index++).toFloat();
   //      <name>groundAltitudeFt = 0.f</name>
@@ -124,6 +126,18 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
   float ambientTemperatureCelsius = pieces.at(index++).toFloat();
   //      <name>seaLevelPressureMbar = 0.f - inhg</name>
   float seaLevelPressureInhg = pieces.at(index++).toFloat();
+  //      <name>fuelTotalQuantityGallons = 0.f</name>
+  float fuelTotalQuantityGallons = pieces.at(index++).toFloat();
+  //      <name>fuelTotalWeightLbs = 0.f</name>
+  float fuelTotalWeightLbs = pieces.at(index++).toFloat();
+  //      <name>magVarDeg = 0.f</name>
+  float magVarDeg = pieces.at(index++).toFloat();
+  //      <name>ambientVisibilityMeter = 0.f;f</name>
+  float ambientVisibilityMeter = pieces.at(index++).toFloat();
+  //      <name>trackMagDeg = 0.f;</name>
+  float trackMagDeg = pieces.at(index++).toFloat();
+  //      <name>trackTrueDeg = 0.f;</name>
+  float trackTrueDeg = pieces.at(index++).toFloat();
   //      <name>airplaneTitle = ""</name>
   QString airplaneTitle = pieces.at(index++);
   //      <name>airplaneModel = ""</name>
@@ -157,19 +171,18 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
   }
 
   // Build local time
-  QDate localDate = QDate::currentDate();
-  QTime localTime = QTime::fromString(hourminutesecond, "HH:mm:ss");
-  QDateTime localDateTime(localDate, localTime);
+  QDateTime zuluDateTime = QDateTime::fromString(timegmt, "yyyy-MM-ddTHH:mm:ss");
+  userAircraft.zuluDateTime = zuluDateTime;
+  QDateTime localDateTime(zuluDateTime.date(), zuluDateTime.time(), Qt::OffsetFromUTC, timeLocalOffset);
   userAircraft.localDateTime = localDateTime;
-  // userAircraft.zuluDateTime
 
-  // userAircraft.magVarDeg
+  userAircraft.magVarDeg = magVarDeg;
 
   // Wind and ambient parameters
   userAircraft.windSpeedKts = windSpeedKts;
   userAircraft.windDirectionDegT = windDirectionDegT;
   userAircraft.ambientTemperatureCelsius = ambientTemperatureCelsius;
-  // userAircraft.totalAirTemperatureCelsius
+  userAircraft.totalAirTemperatureCelsius = ambientTemperatureCelsius; // FIXME
   userAircraft.seaLevelPressureMbar = seaLevelPressureInhg/0.029530f;
 
   // Ice
@@ -182,10 +195,13 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
   // userAircraft.airplaneEmptyWeightLbs
 
   // Fuel flow in weight
-  // userAircraft.fuelTotalWeightLbs
+  userAircraft.fuelTotalWeightLbs = fuelTotalWeightLbs;
+  userAircraft.fuelTotalQuantityGallons = fuelTotalQuantityGallons;
   // userAircraft.fuelFlowPPH
+  // userAircraft.fuelFlowGPH
+  // userAircraft.numberOfEngines
 
-  // userAircraft.ambientVisibilityMeter
+  userAircraft.ambientVisibilityMeter = ambientVisibilityMeter;
 
   // SimConnectAircraft
   userAircraft.airplaneTitle = airplaneTitle;
@@ -204,8 +220,8 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
   // Heading and track
   userAircraft.headingMagDeg = headingMagDeg;
   userAircraft.headingTrueDeg = headingTrueDeg;
-  // userAircraft.trackMagDeg;
-  // userAircraft.trackTrueDeg;
+  userAircraft.trackMagDeg = trackMagDeg;
+  userAircraft.trackTrueDeg = trackTrueDeg;
 
   // Speed
   userAircraft.indicatedSpeedKts = indicatedSpeedKts;
@@ -236,10 +252,6 @@ bool FgConnectHandler::fetchData(fs::sc::SimConnectData& data, int radiusKm, fs:
 
   userAircraft.engineType = atools::fs::sc::UNSUPPORTED;
   // PISTON = 0, JET = 1, NO_ENGINE = 2, HELO_TURBINE = 3, UNSUPPORTED = 4, TURBOPROP = 5
-
-  // userAircraft.fuelTotalQuantityGallons
-  // userAircraft.fuelFlowGPH
-  // userAircraft.numberOfEngines
 
   return true;
 }
