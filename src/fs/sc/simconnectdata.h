@@ -135,6 +135,7 @@ public:
 
 private:
   friend class atools::fs::sc::SimConnectHandler;
+  friend class atools::fs::sc::FgConnectHandler;
   friend class xpc::XpConnect;
 
   const static quint32 MAGIC_NUMBER_DATA = 0xF75E0AF3;

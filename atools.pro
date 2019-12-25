@@ -142,6 +142,7 @@ HEADERS += \
   src/exception.h \
   src/fs/sc/connecthandler.h \
   src/fs/sc/datareaderthread.h \
+  src/fs/sc/fgconnecthandler.h \
   src/fs/sc/simconnectaircraft.h \
   src/fs/sc/simconnectapi.h \
   src/fs/sc/simconnectdata.h \
@@ -248,6 +249,7 @@ SOURCES += \
   src/exception.cpp \
   src/fs/sc/connecthandler.cpp \
   src/fs/sc/datareaderthread.cpp \
+  src/fs/sc/fgconnecthandler.cpp \
   src/fs/sc/simconnectaircraft.cpp \
   src/fs/sc/simconnectapi.cpp \
   src/fs/sc/simconnectdata.cpp \

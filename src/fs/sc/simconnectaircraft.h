@@ -38,6 +38,7 @@ class OnlinedataManager;
 namespace sc {
 
 class SimConnectHandler;
+class FgConnectHandler;
 class SimConnectHandlerPrivate;
 class SimConnectData;
 
@@ -289,6 +290,7 @@ public:
 private:
   friend class atools::fs::sc::SimConnectHandler;
   friend class atools::fs::sc::SimConnectHandlerPrivate;
+  friend class atools::fs::sc::FgConnectHandler;
   friend class atools::fs::sc::SimConnectData;
   friend class xpc::XpConnect;
   friend class atools::fs::online::OnlinedataManager;
