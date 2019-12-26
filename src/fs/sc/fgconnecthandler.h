@@ -32,10 +32,10 @@ namespace sc {
  * Reads data from a callback function into SimConnectData.
  */
 class FgConnectHandler :
-  public QObject,
+  QObject,
   public atools::fs::sc::ConnectHandler
 {
-      Q_OBJECT
+    Q_OBJECT
 public:
   FgConnectHandler(QObject *parent);
   virtual ~FgConnectHandler() override;
@@ -60,9 +60,11 @@ public:
 
   QString getName() const override;
 
-private:
-  void disconnect();
+private slots:
   void readPendingDatagrams();
+
+private:
+  void disconnect();  
 
   QUdpSocket* udpSocket = nullptr;
   atools::fs::sc::State state = DISCONNECTED;

@@ -52,19 +52,33 @@ bool FgConnectHandler::connect()
   }
 
   udpSocket = new QUdpSocket(this->parent());
-  if (!udpSocket->bind(QHostAddress::LocalHost, 7755)) {
+  if (!udpSocket->bind(7755, QUdpSocket::ShareAddress)) {
     qWarning() << Q_FUNC_INFO << "Cannot open UDP port";
     state = OPEN_ERROR;
     udpSocket = nullptr;
     return false;
   }
   else
-  {
-    QObject::connect(udpSocket, &QUdpSocket::readyRead, this, &FgConnectHandler::readPendingDatagrams, Qt::QueuedConnection);
+  {    
+    QObject::connect(udpSocket, SIGNAL(readyRead()), this, SLOT(readPendingDatagrams()));
     qInfo() << Q_FUNC_INFO << "Attached to the UDP port";
     state = STATEOK;
     return true;
   }
+}
+
+void FgConnectHandler::disconnect()
+{
+  if(udpSocket != nullptr) {
+    if (udpSocket->state() == udpSocket->BoundState) {
+      qDebug() << Q_FUNC_INFO << "Closing connection";
+      udpSocket->close();
+      delete udpSocket;
+    }
+  }
+
+  qDebug() << Q_FUNC_INFO << "closed";
+  state = DISCONNECTED;
 }
 
 void FgConnectHandler::readPendingDatagrams()
@@ -291,14 +305,6 @@ atools::fs::sc::State FgConnectHandler::getState() const
 QString FgConnectHandler::getName() const
 {
   return QLatin1Literal("FgConnect");
-}
-
-void FgConnectHandler::disconnect()
-{
-  udpSocket->close();
-  delete udpSocket;
-  qDebug() << Q_FUNC_INFO << "closed";
-  state = DISCONNECTED;
 }
 
 bool FgConnectHandler::isLoaded() const
