@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ namespace util {
 /*
  * Heap data structure.
  */
-template<typename TYPE>
+template<typename TYPE, typename COST>
 class Heap
 {
 public:
@@ -39,16 +39,38 @@ public:
   }
 
   /* Take an element from the top of the heap. This will be the one with the lowest cost assigned */
-  float pop(TYPE& data);
-  void pop(TYPE& data, float& cost);
+  COST pop(TYPE& data);
+
+  /* Return data directly. Use this if TYPE is an integral type like int. */
+  TYPE popData();
+
+  void pop(TYPE& data, COST& cost)
+  {
+    cost = pop(data);
+  }
 
   /* Add element to the heap. The heap will be sorted/rearranged accordingly. */
-  void push(const TYPE& node, float cost);
+  void push(const TYPE& type, COST cost)
+  {
+    heap.push_back({type, cost});
+    std::push_heap(heap.begin(), heap.end());
+  }
 
-  bool contains(const TYPE& data);
+  /* Push data directly. Use this if TYPE is an integral type like int. */
+  void pushData(TYPE data, COST cost)
+  {
+    heap.push_back({data, cost});
+    std::push_heap(heap.begin(), heap.end());
+  }
+
+  bool contains(const TYPE& data)
+  {
+    return std::find(heap.begin(), heap.end(), HeapNode(data)) != heap.end();
+  }
 
   /* Update the costs of an element. The heap will be updated.  */
-  void change(const TYPE& data, float cost);
+  void change(const TYPE& data, COST cost);
+  void changeOrPush(const TYPE& data, COST cost);
 
   bool isEmpty() const
   {
@@ -69,14 +91,14 @@ private:
 
     }
 
-    HeapNode(const TYPE& heapData, float heapCost)
+    HeapNode(const TYPE& heapData, COST heapCost)
       : data(heapData), cost(heapCost)
     {
 
     }
 
     TYPE data;
-    float cost;
+    COST cost;
 
     /* Only data is compared */
     bool operator==(const HeapNode& other) const
@@ -89,24 +111,20 @@ private:
       return this->data != other.data;
     }
 
+    bool operator<(const atools::util::Heap<TYPE, COST>::HeapNode& other) const
+    {
+      return cost > other.cost;
+    }
+
   };
-
-  bool compare(const typename atools::util::Heap<TYPE>::HeapNode& n1,
-               const typename atools::util::Heap<TYPE>::HeapNode& n2)
-  {
-    return n1.cost > n2.cost;
-  }
-
-  std::function<bool(const HeapNode& n1, const HeapNode& n2)> compareFunc =
-    std::bind(&Heap::compare, this, std::placeholders::_1, std::placeholders::_2);
 
   std::vector<HeapNode> heap;
 };
 
-template<typename TYPE>
-float Heap<TYPE>::pop(TYPE& data)
+template<typename TYPE, typename COST>
+COST Heap<TYPE, COST>::pop(TYPE& data)
 {
-  std::pop_heap(heap.begin(), heap.end(), compareFunc);
+  std::pop_heap(heap.begin(), heap.end());
   HeapNode curNode = heap.back();
   heap.pop_back();
 
@@ -114,34 +132,40 @@ float Heap<TYPE>::pop(TYPE& data)
   return curNode.cost;
 }
 
-template<typename TYPE>
-void Heap<TYPE>::pop(TYPE& data, float& cost)
+template<typename TYPE, typename COST>
+TYPE Heap<TYPE, COST>::popData()
 {
-  cost = pop(data);
+  std::pop_heap(heap.begin(), heap.end());
+  HeapNode curNode = heap.back();
+  heap.pop_back();
+  return curNode.data;
 }
 
-template<typename TYPE>
-void Heap<TYPE>::push(const TYPE& node, float cost)
+template<typename TYPE, typename COST>
+void Heap<TYPE, COST>::change(const TYPE& data, COST cost)
 {
-  heap.push_back({node, cost});
-  std::push_heap(heap.begin(), heap.end(), compareFunc);
-}
-
-template<typename TYPE>
-bool Heap<TYPE>::contains(const TYPE& data)
-{
-  return std::find(heap.begin(), heap.end(), HeapNode(data)) != heap.end();
-}
-
-template<typename TYPE>
-void Heap<TYPE>::change(const TYPE& data, float cost)
-{
-  typename std::vector<HeapNode>::iterator it =
-    std::find(heap.begin(), heap.end(), HeapNode(data));
+  typename std::vector<HeapNode>::iterator it = std::find(heap.begin(), heap.end(), HeapNode(data));
 
   if(it != heap.end())
     it->cost = cost;
-  std::make_heap(heap.begin(), heap.end(), compareFunc);
+  std::make_heap(heap.begin(), heap.end());
+}
+
+template<typename TYPE, typename COST>
+void Heap<TYPE, COST>::changeOrPush(const TYPE& data, COST cost)
+{
+  typename std::vector<HeapNode>::iterator it = std::find(heap.begin(), heap.end(), HeapNode(data));
+
+  if(it != heap.end())
+  {
+    it->cost = cost;
+    std::make_heap(heap.begin(), heap.end());
+  }
+  else
+  {
+    heap.push_back({data, cost});
+    std::push_heap(heap.begin(), heap.end());
+  }
 }
 
 } // namespace util

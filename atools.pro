@@ -1,5 +1,5 @@
 #*****************************************************************************
-# Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+# Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -113,6 +113,21 @@ DEFINES += QT_NO_CAST_FROM_BYTEARRAY
 DEFINES += QT_NO_CAST_TO_ASCII
 
 # =======================================================================
+# Include build_options.pro with additional variables
+
+exists($$PWD/../build_options.pro) {
+   include($$PWD/../build_options.pro)
+
+   !isEqual(QUIET, "true") {
+     message($$PWD/../build_options.pro found.)
+   }
+} else {
+   !isEqual(QUIET, "true") {
+     message($$PWD/../build_options.pro not found.)
+   }
+}
+
+# =======================================================================
 # Print values when running qmake
 
 !isEqual(QUIET, "true") {
@@ -169,9 +184,12 @@ HEADERS += \
   src/geo/calculations.h \
   src/geo/line.h \
   src/geo/linestring.h \
+  src/geo/point3d.h \
   src/geo/pos.h \
   src/geo/rect.h \
   src/geo/simplespatialindex.h \
+  src/geo/nanoflann.h \
+  src/geo/spatialindex.h \
   src/grib/windquery.h \
   src/gui/actionstatesaver.h \
   src/gui/actiontextsaver.h \
@@ -205,6 +223,7 @@ HEADERS += \
   src/httpserver/staticfilecontroller.h \
   src/io/abstractinireader.h \
   src/io/binarystream.h \
+  src/io/binaryutil.h \
   src/io/fileroller.h \
   src/io/inireader.h \
   src/io/tempfile.h \
@@ -213,6 +232,9 @@ HEADERS += \
   src/logging/logginghandler.h \
   src/logging/loggingtypes.h \
   src/logging/loggingutil.h \
+  src/routing/routenetwork.h \
+  src/routing/routenetworkloader.h \
+  src/routing/routenetworktypes.h \
   src/settings/settings.h \
   src/sql/sqldatabase.h \
   src/sql/sqlexception.h \
@@ -226,6 +248,9 @@ HEADERS += \
   src/templateengine/templatecache.h \
   src/templateengine/templateglobal.h \
   src/templateengine/templateloader.h \
+  src/track/trackdownloader.h \
+  src/track/trackreader.h \
+  src/track/tracktypes.h \
   src/util/csvreader.h \
   src/util/filesystemwatcher.h \
   src/util/heap.h \
@@ -275,9 +300,11 @@ SOURCES += \
   src/geo/calculations.cpp \
   src/geo/line.cpp \
   src/geo/linestring.cpp \
+  src/geo/point3d.cpp \
   src/geo/pos.cpp \
   src/geo/rect.cpp \
   src/geo/simplespatialindex.cpp \
+  src/geo/spatialindex.cpp \
   src/grib/windquery.cpp \
   src/gui/actionstatesaver.cpp \
   src/gui/actiontextsaver.cpp \
@@ -311,6 +338,7 @@ SOURCES += \
   src/httpserver/staticfilecontroller.cpp \
   src/io/abstractinireader.cpp \
   src/io/binarystream.cpp \
+  src/io/binaryutil.cpp \
   src/io/fileroller.cpp \
   src/io/inireader.cpp \
   src/io/tempfile.cpp \
@@ -318,6 +346,9 @@ SOURCES += \
   src/logging/loggingguiabort.cpp \
   src/logging/logginghandler.cpp \
   src/logging/loggingutil.cpp \
+  src/routing/routenetwork.cpp \
+  src/routing/routenetworkloader.cpp \
+  src/routing/routenetworktypes.cpp \
   src/settings/settings.cpp \
   src/sql/sqldatabase.cpp \
   src/sql/sqlexception.cpp \
@@ -330,6 +361,9 @@ SOURCES += \
   src/templateengine/template.cpp \
   src/templateengine/templatecache.cpp \
   src/templateengine/templateloader.cpp \
+  src/track/trackdownloader.cpp \
+src/track/trackreader.cpp \
+  src/track/tracktypes.cpp \
   src/util/csvreader.cpp \
   src/util/filesystemwatcher.cpp \
   src/util/heap.cpp \
@@ -470,6 +504,7 @@ HEADERS += \
   src/fs/pln/flightplanentry.h \
   src/fs/pln/flightplanio.h \
   src/fs/progresshandler.h \
+  src/routing/routefinder.h \
   src/fs/scenery/addoncfg.h \
   src/fs/scenery/addoncomponent.h \
   src/fs/scenery/addonpackage.h \
@@ -611,6 +646,7 @@ SOURCES += \
   src/fs/pln/flightplanentry.cpp \
   src/fs/pln/flightplanio.cpp \
   src/fs/progresshandler.cpp \
+  src/routing/routefinder.cpp \
   src/fs/scenery/addoncfg.cpp \
   src/fs/scenery/addoncomponent.cpp \
   src/fs/scenery/addonpackage.cpp \
@@ -720,6 +756,7 @@ TRANSLATIONS = \
   atools_fr.ts \
   atools_it.ts \
   atools_nl.ts \
+  atools_zh.ts \
   atools_pt_BR.ts
 
 # Linux specific deploy target

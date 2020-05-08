@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -422,7 +422,10 @@ QString capAirportName(const QString& str)
   const static QSet<QString> upper({
           // Military designators to upper
           "AAF", "AB", "AF", "AFB", "AFS", "AHP", "ANGB", "ARB", "GTS", "LRRS", "PMRF", "MCAF", "MCALF", "MCAS", "NAF",
-          "NALF", "NAS", "NAWS", "NOLF", "NS", "NSF", "RAF", "RNAS", "AFLD"
+          "NALF", "NAS", "NWS", "NAWS", "NOLF", "NS", "NSB", "NSY", "NSWC", "NSF", "RAF", "RNAS", "AFLD",
+
+          // Not military but an acronym
+          "USFS"
         });
 
   return atools::capString(str, upper);

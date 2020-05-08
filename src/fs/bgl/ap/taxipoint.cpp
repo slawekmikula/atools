@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,15 @@ namespace bgl {
 
 using atools::io::BinaryStream;
 
-TaxiPoint::TaxiPoint(io::BinaryStream *bs)
+TaxiPoint::TaxiPoint(io::BinaryStream *bs, atools::fs::bgl::StructureType structureType)
 {
   type = static_cast<taxipoint::PointType>(bs->readUByte());
   dir = static_cast<taxipoint::PointDir>(bs->readUByte());
   bs->skip(2);
   pos = BglPosition(bs);
+
+  if(structureType == STRUCT_P3DV5)
+    bs->skip(4);
 }
 
 TaxiPoint::TaxiPoint()
@@ -99,9 +102,9 @@ QDebug operator<<(QDebug out, const TaxiPoint& record)
   QDebugStateSaver saver(out);
 
   out.nospace().noquote() << " TaxiPoint["
-  << "type " << TaxiPoint::pointTypeToString(record.type)
-  << ", dir " << TaxiPoint::dirToString(record.dir)
-  << ", pos " << record.pos << "]";
+                          << "type " << TaxiPoint::pointTypeToString(record.type)
+                          << ", dir " << TaxiPoint::dirToString(record.dir)
+                          << ", pos " << record.pos << "]";
 
   return out;
 }

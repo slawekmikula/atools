@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -102,10 +102,12 @@ public:
   /* Error message. Bold white text on red background. */
   HtmlBuilder& error(const QString& str);
   static QString errorMessage(const QString& str);
+  static QString errorMessage(const QStringList& stringList, const QString& separator = "<br/>");
 
   /* Warning message. Orange bold text. */
   HtmlBuilder& warning(const QString& str);
   static QString warningMessage(const QString& str);
+  static QString warningMessage(const QStringList& stringList, const QString& separator = "<br/>");
 
   /* Add bold text */
   HtmlBuilder& b(const QString& str);
@@ -279,7 +281,7 @@ public:
 
   /* Document begin and end */
   HtmlBuilder& doc(const QString& title = QString(), const QString& css = QString(),
-                   const QString& bodyStyle = QString());
+                   const QString& bodyStyle = QString(), const QStringList& headerLines = QStringList());
   HtmlBuilder& docEnd();
 
   /*

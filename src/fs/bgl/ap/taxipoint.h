@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 
 #include "fs/bgl/bglposition.h"
 #include "fs/bgl/ap/parking.h"
+#include "fs/bgl/ap/parking.h"
+#include "fs/bgl/record.h"
 
 #include <QString>
 
@@ -62,7 +64,7 @@ class TaxiPoint
 {
 public:
   TaxiPoint();
-  TaxiPoint(atools::io::BinaryStream *bs);
+  TaxiPoint(atools::io::BinaryStream *bs, atools::fs::bgl::StructureType structureType);
   TaxiPoint(const atools::fs::bgl::Parking& parking);
 
   atools::fs::bgl::taxipoint::PointType getType() const

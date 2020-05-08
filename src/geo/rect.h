@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -41,10 +41,12 @@ public:
   /* Create a single point rectangle */
   explicit Rect(const atools::geo::Pos& singlePos);
   explicit Rect(float lonX, float latY);
+  explicit Rect(double lonX, double latY);
 
   explicit Rect(const atools::geo::Pos& topLeftPos, const atools::geo::Pos& bottomRightPos);
   explicit Rect(float leftLonX, float topLatY, float rightLonX, float bottomLatY);
   explicit Rect(double leftLonX, double topLatY, double rightLonX, double bottomLatY);
+  explicit Rect(const LineString& linestring);
 
   /* Create rectangle that includes the given circle. Radius in meter. */
   Rect(const atools::geo::Pos& center, float radiusMeter);
@@ -140,7 +142,8 @@ public:
    *  Ignores invalid positions. */
   atools::geo::Rect& extend(const atools::geo::Pos& pos);
   atools::geo::Rect& extend(const atools::geo::Rect& rect);
-  atools::geo::Rect& extend(const atools::geo::LineString& pos);
+  atools::geo::Rect& extend(const atools::geo::LineString& linestring);
+  static atools::geo::Rect extended(const atools::geo::LineString& linestring);
 
   atools::geo::Pos getCenter() const;
 

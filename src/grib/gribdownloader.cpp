@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "util/httpdownloader.h"
 
 #include "gribreader.h"
+#include "exception.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -123,10 +124,23 @@ void GribDownloader::downloadFinished(const QByteArray& data, QString downloadUr
 
   retries = 0;
 
-  // Decode and copy the data
-  GribReader reader(verbose);
-  reader.readData(data);
-  datasets = reader.getDatasets();
+  try
+  {
+    // Decode and copy the data
+    GribReader reader(verbose);
+    reader.readData(data);
+    datasets = reader.getDatasets();
+  }
+  catch(atools::Exception& e)
+  {
+    emit gribDownloadFailed(e.getMessage(), 0, downloadUrl);
+    return;
+  }
+  catch(...)
+  {
+    emit gribDownloadFailed(tr("Unknown error."), 0, downloadUrl);
+    return;
+  }
 
   emit gribDownloadFinished(datasets, downloadUrl);
 }

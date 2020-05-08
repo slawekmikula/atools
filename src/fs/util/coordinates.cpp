@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -315,12 +315,12 @@ atools::geo::Pos fromAnyWaypointFormat(const QString& str)
   else if(str.size() == 12)
     // "N6400 W07000" or "N6400/W07000"
     return fromDegMinPairFormat(str);
-  else if(str.size() == 7)
-    // Degrees only 46N078W
-    return fromDegFormat(str);
   else if(str.size() == 11)
     // Degrees and minutes 4510N06810W
     return fromDegMinFormat(str);
+  else if(str.size() == 7)
+    // Degrees only 46N078W or 34N150E
+    return fromDegFormat(str);
   else if(str.size() == 5)
     // NAT type 5020N
     return fromNatFormat(str);

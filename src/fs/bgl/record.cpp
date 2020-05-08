@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,11 @@ Record::~Record()
 void Record::seekToEnd() const
 {
   bs->seekg(startOffset + size);
+}
+
+bool Record::isFullyValid() const
+{
+  return id > 0 && startOffset > 0 && size > 0 && startOffset + size <= bs->getFileSize();
 }
 
 QString Record::getObjectName() const

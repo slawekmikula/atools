@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -59,14 +59,19 @@ enum AirportRecordType
   COM = 0x0012,
   DELETE_AIRPORT = 0x0033,
   APRON_FIRST = 0x0037,
+  APRON_FIRST_P3D_V5 = 0x00af,
   APRON_SECOND = 0x0030,
   APRON_SECOND_P3D_V4 = 0x0041,
+  APRON_SECOND_P3D_V5 = 0x00b0,
   APRON_EDGE_LIGHTS = 0x0031,
   TAXI_POINT = 0x001a,
+  TAXI_POINT_P3DV5 = 0x00ac,
   TAXI_PARKING = 0x003d,
+  TAXI_PARKING_P3D_V5 = 0x00ad,
   TAXI_PARKING_FS9 = 0x001b,
   TAXI_PATH = 0x001c,
   TAXI_PATH_P3D_V4 = 0x0040,
+  TAXI_PATH_P3D_V5 = 0x00AE,
   TAXI_NAME = 0x001d,
   JETWAY = 0x003a,
   APPROACH = 0x0024,

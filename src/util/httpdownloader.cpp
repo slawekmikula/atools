@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QNetworkReply>
+#include <QUrlQuery>
 
 namespace atools {
 namespace util {
@@ -91,12 +92,28 @@ void HttpDownloader::startDownload()
     {
       cancelDownload();
 
-      QNetworkRequest request((QUrl(downloadUrl)));
+      QNetworkRequest request(downloadUrl);
 
       if(!userAgent.isEmpty())
         request.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
 
-      reply = networkManager.get(request);
+      if(!postParameters.isEmpty())
+        // Post raw data ============================
+        reply = networkManager.post(request, postParameters);
+      else if(!postParametersQuery.isEmpty())
+      {
+        // Post form data ============================
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+        QUrlQuery params;
+        for(const QString& key : postParametersQuery.keys())
+          params.addQueryItem(key, postParametersQuery.value(key));
+
+        reply = networkManager.post(request, params.query().toUtf8());
+      }
+      else
+        // Get request ============================
+        reply = networkManager.get(request);
 
       if(reply != nullptr)
       {
@@ -115,6 +132,15 @@ void HttpDownloader::cancelDownload()
   stopTimer();
   deleteReply();
   data.clear();
+}
+
+void HttpDownloader::setPostParameters(const QStringList& parameters)
+{
+  postParameters.clear();
+
+  postParametersQuery.clear();
+  for(int i = 0; i < parameters.size() - 1; i += 2)
+    postParametersQuery.insert(parameters.at(i), parameters.at(i + 1));
 }
 
 void HttpDownloader::enableCache(int secondsTimeout)

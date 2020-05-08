@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -286,6 +286,14 @@ bool Line::crossesAntiMeridian() const
   // east / west
   return pos2.getLonX() < pos1.getLonX() ||
          (atools::almostEqual(pos2.getLonX(), 180.f) && atools::almostEqual(pos1.getLonX(), -180.f));
+}
+
+bool Line::isWestCourse() const
+{
+  if(crossesAntiMeridian())
+    return pos1.getLonX() + 360.f > pos2.getLonX();
+  else
+    return pos1.getLonX() > pos2.getLonX();
 }
 
 QDebug operator<<(QDebug out, const Line& record)

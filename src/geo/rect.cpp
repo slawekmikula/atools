@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -58,7 +58,18 @@ Rect::Rect(double leftLonX, double topLatY, double rightLonX, double bottomLatY)
   bottomRight = Pos(rightLonX, bottomLatY);
 }
 
+Rect::Rect(const LineString& linestring)
+{
+  *this = extend(linestring);
+}
+
 Rect::Rect(float lonX, float latY)
+{
+  topLeft = Pos(lonX, latY);
+  bottomRight = Pos(lonX, latY);
+}
+
+Rect::Rect(double lonX, double latY)
 {
   topLeft = Pos(lonX, latY);
   bottomRight = Pos(lonX, latY);
@@ -331,11 +342,18 @@ Rect& Rect::extend(const Rect& rect)
   return *this;
 }
 
-Rect& Rect::extend(const atools::geo::LineString& pos)
+Rect& Rect::extend(const atools::geo::LineString& linestring)
 {
-  for(const Pos& ext : pos)
+  for(const Pos& ext : linestring)
     extend(ext);
   return *this;
+}
+
+Rect Rect::extended(const LineString& linestring)
+{
+  Rect retval;
+  retval.extend(linestring);
+  return retval;
 }
 
 Rect& Rect::scale(float horizontalFactor, float verticalFactor)

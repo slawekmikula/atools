@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -45,19 +45,24 @@ QString programFileInfoNoDate();
  *  An Exception is thrown if the file cannot be opened */
 bool fileEndsWithEol(const QString& filepath);
 
+/* Return true if one of the elements in list is equal to str */
+bool contains(const QString& name, const std::initializer_list<QString>& list);
+bool contains(const QString& name, const std::initializer_list<const char *>& list);
+
 template<typename TYPE>
-bool contains(const TYPE& name, const std::initializer_list<TYPE>& list)
+bool contains(const TYPE& str, const std::initializer_list<TYPE>& list)
 {
   for(const TYPE& val : list)
-    if(val == name)
+    if(val == str)
       return true;
 
   return false;
 }
 
-bool contains(const QString& name, const std::initializer_list<QString>& list);
-
-bool contains(const QString& name, const std::initializer_list<const char *>& list);
+/* Returns true if the string contains one of the list */
+bool strContains(const QString& name, const std::initializer_list<QString>& list);
+bool strContains(const QString& name, const std::initializer_list<const char *>& list);
+bool strContains(const QString& name, const std::initializer_list<char>& list);
 
 template<typename TYPE1, typename TYPE2>
 void convertList(QList<TYPE1>& dest, const QList<TYPE2>& src)
@@ -72,6 +77,9 @@ void convertVector(QVector<TYPE1>& dest, const QVector<TYPE2>& src)
   for(TYPE2 type : src)
     dest.append(type);
 }
+
+/* Read whole file into a string */
+QString strFromFile(const QString& filename);
 
 /* Cuts text at the right and uses combined ellipsis character */
 QString elideTextShort(const QString& str, int maxLength);
@@ -143,9 +151,15 @@ Q_DECL_CONSTEXPR TYPE minmax(TYPE minValue, TYPE maxValue, TYPE value)
 }
 
 /* Returns 0 if without throwing an exception if index is not valid */
-inline QChar strAt(const QString& str, int index)
+inline QChar charAt(const QString& str, int index)
 {
   return index >= 0 && index < str.size() ? str.at(index) : QChar('\0');
+}
+
+/* Returns 0 if without throwing an exception if index is not valid */
+inline char latin1CharAt(const QString& str, int index)
+{
+  return index >= 0 && index < str.size() ? str.at(index).toLatin1() : '\0';
 }
 
 template<typename TYPE>
@@ -332,12 +346,6 @@ Q_DECL_CONSTEXPR bool almostEqual(TYPE f1, TYPE f2)
 }
 
 template<typename TYPE>
-Q_DECL_CONSTEXPR bool almostNotEqual(TYPE f1, TYPE f2)
-{
-  return std::abs(f1 - f2) >= std::numeric_limits<TYPE>::epsilon();
-}
-
-template<typename TYPE>
 Q_DECL_CONSTEXPR bool almostEqual(TYPE f1, TYPE f2, TYPE epsilon)
 {
   return std::abs(f1 - f2) <= epsilon;
@@ -362,28 +370,71 @@ Q_DECL_CONSTEXPR bool almostEqual<long long>(long long f1, long long f2, long lo
 }
 
 template<typename TYPE>
+Q_DECL_CONSTEXPR bool almostNotEqual(TYPE f1, TYPE f2)
+{
+  return !almostEqual<TYPE>(f1, f2);
+}
+
+template<typename TYPE>
 Q_DECL_CONSTEXPR bool almostNotEqual(TYPE f1, TYPE f2, TYPE epsilon)
 {
-  return std::abs(f1 - f2) >= epsilon;
+  return !almostEqual<TYPE>(f1, f2, epsilon);
 }
 
 template<>
 Q_DECL_CONSTEXPR bool almostNotEqual<int>(int f1, int f2, int epsilon)
 {
-  return atools::absInt(f1 - f2) >= epsilon;
+  return !almostEqual<int>(f1, f2, epsilon);
 }
 
 template<>
 Q_DECL_CONSTEXPR bool almostNotEqual<long>(long f1, long f2, long epsilon)
 {
-  return atools::absLong(f1 - f2) >= epsilon;
+  return !almostEqual<long>(f1, f2, epsilon);
 }
 
 template<>
 Q_DECL_CONSTEXPR bool almostNotEqual<long long>(long long f1, long long f2, long long epsilon)
 {
-  return atools::absLongLong(f1 - f2) >= epsilon;
+  return !almostEqual<long long>(f1, f2, epsilon);
 }
+
+/* Allocates array and fills with 0 */
+template<typename TYPE>
+inline TYPE *allocArray(int size)
+{
+  unsigned long num = static_cast<unsigned long>(size);
+  TYPE *arr = new TYPE[num];
+  memset(arr, 0, sizeof(arr[0]) * num);
+  return arr;
+}
+
+/* Allocates array and fills with given type */
+template<typename TYPE>
+inline TYPE *allocArray(int size, const TYPE& fill)
+{
+  unsigned long num = static_cast<unsigned long>(size);
+  TYPE *arr = new TYPE[num];
+  for(int i = 0; i < size; i++)
+    arr[i] = fill;
+  return arr;
+}
+
+/* Frees array and sets pointer to nullptr */
+template<typename TYPE>
+inline void freeArray(TYPE *& arr)
+{
+  if(arr != nullptr)
+    delete[] arr;
+  arr = nullptr;
+}
+
+/* Get well known system folders from QStandardPaths. */
+QString documentsDir();
+QString downloadDir();
+QString tempDir();
+QString desktopDir();
+QString homeDir();
 
 } // namespace atools
 

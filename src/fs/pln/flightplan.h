@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ namespace pln {
 
 class FlightplanIO;
 
+typedef QList<atools::fs::pln::FlightplanEntry> FlightplanEntryListType;
+
 /*
  * A class to load, modify and save FSX (and all other compatible simulators) flight plans.
  */
@@ -51,7 +53,7 @@ public:
   /*
    * @return Get all flight plan entries/waypoints. These include start and destination.
    */
-  QList<atools::fs::pln::FlightplanEntry>& getEntries()
+  atools::fs::pln::FlightplanEntryListType& getEntries()
   {
     return entries;
   }
@@ -62,7 +64,7 @@ public:
   /*
    * @return Get all flight plan entries/waypoints. These include start and destination.
    */
-  const QList<atools::fs::pln::FlightplanEntry>& getEntries() const
+  const atools::fs::pln::FlightplanEntryListType& getEntries() const
   {
     return entries;
   }
@@ -89,16 +91,6 @@ public:
     flightplanType = value;
   }
 
-  atools::fs::pln::RouteType getRouteType() const
-  {
-    return routeType;
-  }
-
-  void setRouteType(atools::fs::pln::RouteType value)
-  {
-    routeType = value;
-  }
-
   /*
    * @return cruise altitude in feet
    */
@@ -110,19 +102,6 @@ public:
   void setCruisingAltitude(int value)
   {
     cruisingAlt = value;
-  }
-
-  /*
-   * @return "Descr" element of the file like "LOAG, LSZG"
-   */
-  const QString& getDescription() const
-  {
-    return description;
-  }
-
-  void setDescription(const QString& value)
-  {
-    description = value;
   }
 
   /*
@@ -215,19 +194,6 @@ public:
   void setDeparturePosition(const atools::geo::Pos& value);
   void setDeparturePosition(const atools::geo::Pos& value, float altitude);
 
-  /*
-   * @return title of the flight plan like "EDMA to LESU"
-   */
-  const QString& getTitle() const
-  {
-    return title;
-  }
-
-  void setTitle(const QString& value)
-  {
-    title = value;
-  }
-
   const QHash<QString, QString>& getProperties() const
   {
     return properties;
@@ -243,14 +209,34 @@ public:
     properties = value;
   }
 
-  atools::fs::pln::FileFormat getFileFormat() const
+  const QString& getComment() const
   {
-    return fileFormat;
+    return comment;
   }
 
-  void setFileFormat(const atools::fs::pln::FileFormat& value)
+  void setComment(const QString& value)
   {
-    fileFormat = value;
+    comment = value;
+  }
+
+  QString getTitle() const
+  {
+    return departureIdent + " to " + destinationIdent;
+  }
+
+  QString getDescr() const
+  {
+    return departureIdent + ", " + destinationIdent;
+  }
+
+  bool isLnmFormat() const
+  {
+    return lnmFormat;
+  }
+
+  void setLnmFormat(bool value)
+  {
+    lnmFormat = value;
   }
 
 private:
@@ -268,23 +254,19 @@ private:
     return destinationAiportName.isEmpty() ? destinationIdent : destinationAiportName;
   }
 
-  /* Values for FSX */
-  const QString APPVERSION_BUILD = QString("61472");
-  const QString APPVERSION_MAJOR = QString("10");
-
   /* Limit altitude to this value */
   const int MAX_ALTITUDE = 80000;
 
-  atools::fs::pln::FileFormat fileFormat = PLN_FSX;
   atools::fs::pln::FlightplanType flightplanType = VFR;
-  atools::fs::pln::RouteType routeType = DIRECT;
 
-  QList<atools::fs::pln::FlightplanEntry> entries;
+  atools::fs::pln::FlightplanEntryListType entries;
 
   int cruisingAlt;
-  QString title, departureIdent, destinationIdent, description,
-          departureParkingName, departureAiportName, destinationAiportName, appVersionMajor, appVersionBuild;
+  QString departureIdent, destinationIdent,
+          departureParkingName, departureAiportName, destinationAiportName, comment;
   atools::geo::Pos departurePos /* Airport or Parking */, destinationPos;
+
+  bool lnmFormat = false;
 
   QHash<QString, QString> properties;
 

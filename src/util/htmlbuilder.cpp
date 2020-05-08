@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -147,6 +147,14 @@ HtmlBuilder& HtmlBuilder::error(const QString& str)
   return *this;
 }
 
+QString HtmlBuilder::errorMessage(const QStringList& stringList, const QString& separator)
+{
+  QStringList errList;
+  for(const QString& str : stringList)
+    errList.append(errorMessage(str));
+  return errList.join(separator);
+}
+
 QString HtmlBuilder::errorMessage(const QString& str)
 {
   if(!str.isEmpty())
@@ -171,6 +179,14 @@ QString HtmlBuilder::warningMessage(const QString& str)
                    "</span>").arg(str.toHtmlEscaped());
 
   return str;
+}
+
+QString HtmlBuilder::warningMessage(const QStringList& stringList, const QString& separator)
+{
+  QStringList warnList;
+  for(const QString& str : stringList)
+    warnList.append(warningMessage(str));
+  return warnList.join(separator);
 }
 
 HtmlBuilder& HtmlBuilder::row2AlignRight(bool alignRight)
@@ -886,7 +902,8 @@ HtmlBuilder& HtmlBuilder::p(const QString& str, html::Flags flags, QColor color)
   return *this;
 }
 
-HtmlBuilder& HtmlBuilder::doc(const QString& title, const QString& css, const QString& bodyStyle)
+HtmlBuilder& HtmlBuilder::doc(const QString& title, const QString& css, const QString& bodyStyle,
+                              const QStringList& headerLines)
 {
   htmlText +=
     "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
@@ -898,6 +915,10 @@ HtmlBuilder& HtmlBuilder::doc(const QString& title, const QString& css, const QS
 
   if(!title.isEmpty())
     htmlText += QString("<title>%1</title>\n").arg(title);
+
+  // Other header lines like "meta"
+  for(const QString& line : headerLines)
+    htmlText += line;
 
   // <link rel="stylesheet" href="css/style.css" type="text/css" />
   htmlText += "</head>\n";

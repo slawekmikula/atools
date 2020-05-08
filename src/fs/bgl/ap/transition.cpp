@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -55,6 +55,13 @@ QString Transition::transitionFixTypeToStr(ap::tfix::TransitionFixType type)
     case ap::tfix::TERMINAL_NDB:
       return "TN";
 
+    /* From P3D v5 upwards - these are wrong types for this field taken from the XSD.
+     * They will be converted to WAYPOINT. */
+    case ap::tfix::MANUAL_TERMINATION:
+    case ap::tfix::COURSE_TO_ALT:
+    case ap::tfix::COURSE_TO_DIST:
+    case ap::tfix::HEADING_TO_ALT:
+    case ap::tfix::UNKNOWN_TYPE:
     case ap::tfix::WAYPOINT:
       return "W";
 
@@ -136,17 +143,17 @@ QDebug operator<<(QDebug out, const Transition& record)
   QDebugStateSaver saver(out);
 
   out.nospace().noquote() << static_cast<const Record&>(record)
-  << " Transition[type " << Transition::transitionTypeToStr(record.type)
-  << ", transFixType " << Transition::transitionFixTypeToStr(record.transFixType)
-  << ", transFixIdent " << record.transFixIdent
-  << ", fixRegion " << record.fixRegion
-  << ", airportIdent " << record.fixAirportIdent
-  << ", altitude " << record.altitude
-  << ", dmeIdent " << record.dmeIdent
-  << ", dmeRegion " << record.dmeRegion
-  << ", dmeAirportIdent " << record.dmeAirportIdent
-  << ", dmeRadial " << record.dmeRadial
-  << ", dmeDist " << record.dmeDist << endl;
+                          << " Transition[type " << Transition::transitionTypeToStr(record.type)
+                          << ", transFixType " << Transition::transitionFixTypeToStr(record.transFixType)
+                          << ", transFixIdent " << record.transFixIdent
+                          << ", fixRegion " << record.fixRegion
+                          << ", airportIdent " << record.fixAirportIdent
+                          << ", altitude " << record.altitude
+                          << ", dmeIdent " << record.dmeIdent
+                          << ", dmeRegion " << record.dmeRegion
+                          << ", dmeAirportIdent " << record.dmeAirportIdent
+                          << ", dmeRadial " << record.dmeRadial
+                          << ", dmeDist " << record.dmeDist << endl;
   out << record.legs;
   out << "]";
   return out;

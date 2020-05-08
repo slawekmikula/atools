@@ -1279,6 +1279,22 @@ Datei: &quot;%2&quot;
         <source>File does not exist</source>
         <translation>Datei existiert nicht</translation>
     </message>
+    <message>
+        <source>UNKNOWN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NAT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PACOTS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AUSOTS</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>SceneryCfg</name>
@@ -1300,6 +1316,21 @@ Datei: &quot;%2&quot;
     <message>
         <source>Cannot open &quot;%1&quot; for writing. Error: %2</source>
         <translation>Datei %1 kann nicht geschrieben werden. Grund: %2</translation>
+    </message>
+</context>
+<context>
+    <name>TrackReader</name>
+    <message>
+        <source>Cannot open track file &quot;%1&quot;. Reason: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error in file on line %1. Found begin marker inside of section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error in file on line %1. Found end marker outside of section.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1721,6 +1752,20 @@ Nachtzeit: %5</translation>
     </message>
 </context>
 <context>
+    <name>atools::grib::GribDownloader</name>
+    <message>
+        <source>Unknown error.</source>
+        <translation>Unbekannter Fehler.</translation>
+    </message>
+</context>
+<context>
+    <name>atools::grib::WindQuery</name>
+    <message>
+        <source>Unknown error.</source>
+        <translation>Unbekannter Fehler.</translation>
+    </message>
+</context>
+<context>
     <name>atools::gui::Application</name>
     <message>
         <source>&lt;b&gt;If the problem persists or occurs during startup delete all settings and database files of %4 and try again.&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;If you wish to report this error attach the log and configuration files to your report, add all other available information and send it to one of the contact addresses below.&lt;/b&gt;&lt;br/&gt;</source>
@@ -1779,7 +1824,7 @@ Nachtzeit: %5</translation>
     </message>
     <message>
         <source>URL is empty for &quot;%1&quot; and anchor &quot;%2&quot;.</source>
-        <translation>URL für &quot;%1&quot; und Anker &quot;%2&quot; ist leer.</translation>
+        <translation type="vanished">URL für &quot;%1&quot; und Anker &quot;%2&quot; ist leer.</translation>
     </message>
     <message>
         <source>URL is empty for &quot;%1&quot;.</source>

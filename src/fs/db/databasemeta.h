@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -86,6 +86,12 @@ public:
     return sidStar;
   }
 
+  /* True if table airway has route_type */
+  bool hasRouteType() const
+  {
+    return routeType;
+  }
+
   /*
    * @return true if application major version and database major version are equal
    */
@@ -126,8 +132,9 @@ public:
    * 13 Fix for VASI assignment in X-Plane
    * 14 Usage of X-Plane 3D attribute
    * 15 Fix for X-Plane ICAO names
+   * 16 "route_type" added to table "airway".
    */
-  static const int DB_VERSION_MINOR = 15;
+  static const int DB_VERSION_MINOR = 16;
 
   void init();
 
@@ -180,7 +187,7 @@ private:
 
   int majorVersion = 0, minorVersion = 0;
   QDateTime lastLoadTime;
-  bool valid = false, sidStar = false;
+  bool valid = false, sidStar = false, routeType = false;
   QString airacCycle, validThrough, dataSource, compilerVersion;
 };
 

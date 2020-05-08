@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -151,6 +151,14 @@ public:
 
   /* Needs pos 1 as the wester part and pos 2 as the eastern part */
   bool crossesAntiMeridian() const;
+
+  /* true if heading of "from" to "to" is towards west or east. */
+  bool isWestCourse() const;
+
+  bool isEastCourse() const
+  {
+    return !isWestCourse();
+  }
 
 private:
   friend QDataStream& operator<<(QDataStream& out, const atools::geo::Line& obj);

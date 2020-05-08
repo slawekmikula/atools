@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Copyright 2015-2019 Alexander Barthel alex@littlenavmap.org
+* Copyright 2015-2020 Alexander Barthel alex@littlenavmap.org
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -39,26 +39,21 @@ FlightplanEntry::FlightplanEntry(const FlightplanEntry& other)
 FlightplanEntry& FlightplanEntry::operator=(const FlightplanEntry& other)
 {
   waypointType = other.waypointType;
-  waypointId = other.waypointId;
   airway = other.airway;
-  icaoRegion = other.icaoRegion;
-  icaoIdent = other.icaoIdent;
+  region = other.region;
+  ident = other.ident;
   name = other.name;
   magvar = other.magvar;
   position = other.position;
   flags = other.flags;
   frequency = other.frequency;
+  comment = other.comment;
   return *this;
-}
-
-const QString& FlightplanEntry::getWaypointTypeAsString() const
-{
-  return waypointTypeToString(waypointType);
 }
 
 QString FlightplanEntry::getWaypointTypeAsStringShort() const
 {
-  const QString type = waypointTypeToString(waypointType);
+  const QString type = waypointTypeToFsxString(waypointType);
   return type.isEmpty() ? type : type.at(0);
 }
 
@@ -72,16 +67,20 @@ void FlightplanEntry::setWaypointType(const QString& value)
   waypointType = stringToWaypointType(value);
 }
 
+void FlightplanEntry::setWaypointTypeFromLnm(const QString& value)
+{
+  waypointType = stringToWaypointTypeLnm(value);
+}
+
 bool FlightplanEntry::operator==(const FlightplanEntry& other)
 {
   return waypointType == other.waypointType &&
-         waypointId == other.waypointId &&
-         icaoRegion == other.icaoRegion &&
-         icaoIdent == other.icaoIdent &&
+         region == other.region &&
+         ident == other.ident &&
          name == other.name;
 }
 
-const QString& FlightplanEntry::waypointTypeToString(entry::WaypointType type)
+const QString& FlightplanEntry::waypointTypeToFsxString(entry::WaypointType type)
 {
   static const QString airportName("Airport"), unknownName("Unknown"), isecName("Intersection"),
   vorName("VOR"), ndbName("NDB"), userName("User"), emptyName;
@@ -94,7 +93,7 @@ const QString& FlightplanEntry::waypointTypeToString(entry::WaypointType type)
     case atools::fs::pln::entry::UNKNOWN:
       return unknownName;
 
-    case atools::fs::pln::entry::INTERSECTION:
+    case atools::fs::pln::entry::WAYPOINT:
       return isecName;
 
     case atools::fs::pln::entry::VOR:
@@ -110,12 +109,38 @@ const QString& FlightplanEntry::waypointTypeToString(entry::WaypointType type)
   return emptyName;
 }
 
+QString FlightplanEntry::waypointTypeToDisplayString(entry::WaypointType type)
+{
+  switch(type)
+  {
+    case atools::fs::pln::entry::AIRPORT:
+      return tr("Airport");
+
+    case atools::fs::pln::entry::UNKNOWN:
+      return tr("Unknown");
+
+    case atools::fs::pln::entry::WAYPOINT:
+      return tr("Waypoint");
+
+    case atools::fs::pln::entry::VOR:
+      return tr("VOR");
+
+    case atools::fs::pln::entry::NDB:
+      return tr("NDB");
+
+    case atools::fs::pln::entry::USER:
+      return tr("User");
+
+  }
+  return tr("Unknown");
+}
+
 entry::WaypointType FlightplanEntry::stringToWaypointType(const QString& str)
 {
   if(str.startsWith("A"))
     return entry::AIRPORT;
   else if(str.startsWith("I"))
-    return entry::INTERSECTION;
+    return entry::WAYPOINT;
   else if(str.startsWith("V"))
     return entry::VOR;
   else if(str.startsWith("N"))
@@ -126,18 +151,78 @@ entry::WaypointType FlightplanEntry::stringToWaypointType(const QString& str)
   return entry::UNKNOWN;
 }
 
+const QString& FlightplanEntry::waypointTypeToLnmString(entry::WaypointType type)
+{
+  static const QString airportName("AIRPORT"), unknownName("UNKNOWN"), isecName("WAYPOINT"),
+  vorName("VOR"), ndbName("NDB"), userName("USER"), emptyName;
+
+  switch(type)
+  {
+    case atools::fs::pln::entry::AIRPORT:
+      return airportName;
+
+    case atools::fs::pln::entry::UNKNOWN:
+      return unknownName;
+
+    case atools::fs::pln::entry::WAYPOINT:
+      return isecName;
+
+    case atools::fs::pln::entry::VOR:
+      return vorName;
+
+    case atools::fs::pln::entry::NDB:
+      return ndbName;
+
+    case atools::fs::pln::entry::USER:
+      return userName;
+  }
+  return emptyName;
+}
+
+entry::WaypointType FlightplanEntry::stringToWaypointTypeLnm(const QString& str)
+{
+  if(str.startsWith("A"))
+    return entry::AIRPORT;
+  else if(str.startsWith("W"))
+    return entry::WAYPOINT;
+  else if(str.startsWith("V"))
+    return entry::VOR;
+  else if(str.startsWith("N"))
+    return entry::NDB;
+  else if(str.startsWith("U"))
+    return entry::USER;
+
+  return entry::UNKNOWN;
+}
+
+QString FlightplanEntry::flagsAsString(atools::fs::pln::entry::Flags flags)
+{
+  QStringList retval;
+
+  if(flags == entry::NONE)
+    return "NONE";
+
+  if(flags & entry::PROCEDURE)
+    retval.append("PROCEDURE");
+  if(flags & entry::ALTERNATE)
+    retval.append("ALTERNATE");
+  if(flags & entry::TRACK)
+    retval.append("TRACK");
+  return retval.join(",");
+}
+
 QDebug operator<<(QDebug out, const FlightplanEntry& record)
 {
   QDebugStateSaver saver(out);
 
-  out.noquote().nospace() << "FlightplanEntry[id " << record.getWaypointId()
-                          << ", type " << record.getWaypointTypeAsString()
-                          << ", ident " << record.getIcaoIdent()
-                          << ", region " << record.getIcaoRegion()
+  out.noquote().nospace() << "FlightplanEntry[type " << record.getWaypointTypeAsFsxString()
+                          << ", ident " << record.getIdent()
+                          << ", region " << record.getRegion()
                           << ", airway " << record.getAirway()
+                          << ", comment " << record.getComment()
                           << ", pos " << record.getPosition()
-                          << ", flags " << record.getFlags()
-                          << ", save " << !record.isNoSave() << "]" << endl;
+                          << ", flags " << FlightplanEntry::flagsAsString(record.getFlags())
+                          << ", save " << !record.isNoSave() << "]";
   return out;
 }
 
