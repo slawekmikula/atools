@@ -23,8 +23,11 @@
 #include "sql/sqldatabase.h"
 #include "util/csvreader.h"
 #include "geo/pos.h"
+#include "zip/gzip.h"
 #include "geo/calculations.h"
 #include "exception.h"
+#include "geo/linestring.h"
+#include "fs/pln/flightplanio.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -41,49 +44,98 @@ using atools::sql::SqlExport;
 using atools::sql::SqlRecord;
 using atools::sql::SqlTransaction;
 
+/* *INDENT-OFF* */
 namespace csv {
 /* Column indexes in CSV format */
 enum Index
 {
-  // LOGBOOK_ID,- not in CSV
-  AIRCRAFT_NAME,
-  AIRCRAFT_TYPE,
-  AIRCRAFT_REGISTRATION,
-  FLIGHTPLAN_NUMBER,
-  FLIGHTPLAN_CRUISE_ALTITUDE,
-  FLIGHTPLAN_FILE,
-  PERFORMANCE_FILE,
-  BLOCK_FUEL,
-  TRIP_FUEL,
-  USED_FUEL,
-  IS_JETFUEL,
-  GROSSWEIGHT,
-  DISTANCE,
-  DISTANCE_FLOWN,
-  DEPARTURE_IDENT,
-  DEPARTURE_NAME,
-  DEPARTURE_RUNWAY,
-  DEPARTURE_LONX,
-  DEPARTURE_LATY,
-  DEPARTURE_ALT,
-  DEPARTURE_TIME,
-  DEPARTURE_TIME_SIM,
-  DESTINATION_IDENT,
-  DESTINATION_NAME,
-  DESTINATION_RUNWAY,
-  DESTINATION_LONX,
-  DESTINATION_LATY,
-  DESTINATION_ALT,
-  DESTINATION_TIME,
-  DESTINATION_TIME_SIM,
-  ROUTE_STRING,
-  SIMULATOR,
-  DESCRIPTION
-  // PLAN_GEOMETRY,
-  // TRAIL_GEOMETRY
+  // LOGBOOK_ID,- not in CSV  // logbook_id
+  FIRST_COL,
+  AIRCRAFT_NAME = FIRST_COL,  // aircraft_name
+  AIRCRAFT_TYPE,              // aircraft_type
+  AIRCRAFT_REGISTRATION,      // aircraft_registration
+  FLIGHTPLAN_NUMBER,          // flightplan_number
+  FLIGHTPLAN_CRUISE_ALTITUDE, // flightplan_cruise_altitude
+  FLIGHTPLAN_FILE,            // flightplan_file
+  PERFORMANCE_FILE,           // performance_file
+  BLOCK_FUEL,                 // block_fuel
+  TRIP_FUEL,                  // trip_fuel
+  USED_FUEL,                  // used_fuel
+  IS_JETFUEL,                 // is_jetfuel
+  GROSSWEIGHT,                // grossweight
+  DISTANCE,                   // distance
+  DISTANCE_FLOWN,             // distance_flown
+  DEPARTURE_IDENT,            // departure_ident
+  DEPARTURE_NAME,             // departure_name
+  DEPARTURE_RUNWAY,           // departure_runway
+  DEPARTURE_LONX,             // departure_lonx
+  DEPARTURE_LATY,             // departure_laty
+  DEPARTURE_ALT,              // departure_alt
+  DEPARTURE_TIME,             // departure_time
+  DEPARTURE_TIME_SIM,         // departure_time_sim
+  DESTINATION_IDENT,          // destination_ident
+  DESTINATION_NAME,           // destination_name
+  DESTINATION_RUNWAY,         // destination_runway
+  DESTINATION_LONX,           // destination_lonx
+  DESTINATION_LATY,           // destination_laty
+  DESTINATION_ALT,            // destination_alt
+  DESTINATION_TIME,           // destination_time
+  DESTINATION_TIME_SIM,       // destination_time_sim
+  ROUTE_STRING,               // route_string
+  SIMULATOR,                  // simulator
+  DESCRIPTION,                // description
+  FLIGHTPLAN,                 // flightplan
+  AIRCRAFT_PERF,              // aircraft_perf
+  AIRCRAFT_TRAIL,             // aircraft_trail
+  LAST_COL = AIRCRAFT_TRAIL
 };
 
+const static QString HEADER_LINE = "aircraftname,aircrafttype,aircraftregistration,flightplannumber,";
+const static QString HEADER_LINE2 = "aircraft_name,aircraft_type,aircraft_registration,flightplan_number,";
+
+/* Map index to column names. Needed to keep the export order independent of the column order in the table */
+const static QHash<int, std::pair<QString,QString>> COL_MAP =
+{
+  // LOGBOOK_ID,- not in CSV    logbook_id
+  { AIRCRAFT_NAME,              std::make_pair("aircraft_name",              "Aircraft Name"              )},
+  { AIRCRAFT_TYPE,              std::make_pair("aircraft_type",              "Aircraft Type"              )},
+  { AIRCRAFT_REGISTRATION,      std::make_pair("aircraft_registration",      "Aircraft Registration"      )},
+  { FLIGHTPLAN_NUMBER,          std::make_pair("flightplan_number",          "Flightplan Number"          )},
+  { FLIGHTPLAN_CRUISE_ALTITUDE, std::make_pair("flightplan_cruise_altitude", "Flightplan Cruise Altitude" )},
+  { FLIGHTPLAN_FILE,            std::make_pair("flightplan_file",            "Flightplan File"            )},
+  { PERFORMANCE_FILE,           std::make_pair("performance_file",           "Performance File"           )},
+  { BLOCK_FUEL,                 std::make_pair("block_fuel",                 "Block Fuel"                 )},
+  { TRIP_FUEL,                  std::make_pair("trip_fuel",                  "Trip Fuel"                  )},
+  { USED_FUEL,                  std::make_pair("used_fuel",                  "Used Fuel"                  )},
+  { IS_JETFUEL,                 std::make_pair("is_jetfuel",                 "Is Jetfuel"                 )},
+  { GROSSWEIGHT,                std::make_pair("grossweight",                "Grossweight"                )},
+  { DISTANCE,                   std::make_pair("distance",                   "Distance"                   )},
+  { DISTANCE_FLOWN,             std::make_pair("distance_flown",             "Distance Flown"             )},
+  { DEPARTURE_IDENT,            std::make_pair("departure_ident",            "Departure Ident"            )},
+  { DEPARTURE_NAME,             std::make_pair("departure_name",             "Departure Name"             )},
+  { DEPARTURE_RUNWAY,           std::make_pair("departure_runway",           "Departure Runway"           )},
+  { DEPARTURE_LONX,             std::make_pair("departure_lonx",             "Departure Lonx"             )},
+  { DEPARTURE_LATY,             std::make_pair("departure_laty",             "Departure Laty"             )},
+  { DEPARTURE_ALT,              std::make_pair("departure_alt",              "Departure Alt"              )},
+  { DEPARTURE_TIME,             std::make_pair("departure_time",             "Departure Time"             )},
+  { DEPARTURE_TIME_SIM,         std::make_pair("departure_time_sim",         "Departure Time Sim"         )},
+  { DESTINATION_IDENT,          std::make_pair("destination_ident",          "Destination Ident"          )},
+  { DESTINATION_NAME,           std::make_pair("destination_name",           "Destination Name"           )},
+  { DESTINATION_RUNWAY,         std::make_pair("destination_runway",         "Destination Runway"         )},
+  { DESTINATION_LONX,           std::make_pair("destination_lonx",           "Destination Lonx"           )},
+  { DESTINATION_LATY,           std::make_pair("destination_laty",           "Destination Laty"           )},
+  { DESTINATION_ALT,            std::make_pair("destination_alt",            "Destination Alt"            )},
+  { DESTINATION_TIME,           std::make_pair("destination_time",           "Destination Time"           )},
+  { DESTINATION_TIME_SIM,       std::make_pair("destination_time_sim",       "Destination Time Sim"       )},
+  { ROUTE_STRING,               std::make_pair("route_string",               "Route String"               )},
+  { SIMULATOR,                  std::make_pair("simulator",                  "Simulator"                  )},
+  { DESCRIPTION,                std::make_pair("description",                "Description"                )},
+  { FLIGHTPLAN,                 std::make_pair("flightplan",                 "Flightplan"                 )},
+  { AIRCRAFT_PERF,              std::make_pair("aircraft_perf",              "Aircraft Perf"              )},
+  { AIRCRAFT_TRAIL,             std::make_pair("aircraft_trail",             "Aircraft Trail"             )}
+};
 }
+/* *INDENT-ON* */
 
 LogdataManager::LogdataManager(sql::SqlDatabase *sqlDb)
   : DataManagerBase(sqlDb, "logbook", "logbook_id",
@@ -123,9 +175,13 @@ int LogdataManager::importCsv(const QString& filepath)
 
       if(lineNum == 0)
       {
-        lineNum++;
-        // Ignore header
-        continue;
+        QString header = QString(line).replace(" ", QString()).toLower();
+        if(header.startsWith(csv::HEADER_LINE) || header.startsWith(csv::HEADER_LINE2))
+        {
+          lineNum++;
+          // Ignore header
+          continue;
+        }
       }
 
       // Skip empty lines but add them if within an escaped field
@@ -218,9 +274,13 @@ int LogdataManager::importCsv(const QString& filepath)
       insertQuery.bindValue(":simulator", at(values, csv::SIMULATOR));
       insertQuery.bindValue(":description", at(values, csv::DESCRIPTION));
 
-      // Geometry ===============================================================
-      // insertQuery.bindValue(":plan_geometry", at(values, csv::PLAN_GEOMETRY));
-      // insertQuery.bindValue(":trail_geometry", at(values, csv::TRAIL_GEOMETRY));
+      // Add files as Gzipped BLOBS ===========================================
+      insertQuery.bindValue(":flightplan", atools::zip::gzipCompress(at(values, csv::FLIGHTPLAN,
+                                                                        true /* nowarn */).toUtf8()));
+      insertQuery.bindValue(":aircraft_perf", atools::zip::gzipCompress(at(values, csv::AIRCRAFT_PERF,
+                                                                           true /* nowarn */).toUtf8()));
+      insertQuery.bindValue(":aircraft_trail", atools::zip::gzipCompress(at(values, csv::AIRCRAFT_TRAIL,
+                                                                            true /* nowarn */).toUtf8()));
 
       // Fill null fields with empty strings to avoid issues when searching
       fixEmptyFields(insertQuery);
@@ -423,7 +483,7 @@ int LogdataManager::importXplane(const QString& filepath,
 
 }
 
-int LogdataManager::exportCsv(const QString& filepath)
+int LogdataManager::exportCsv(const QString& filepath, bool exportPlan, bool exportPerf, bool exportGpx, bool header)
 {
   int exported = 0;
   QFile file(filepath);
@@ -434,9 +494,29 @@ int LogdataManager::exportCsv(const QString& filepath)
     out.setRealNumberPrecision(5);
     out.setRealNumberNotation(QTextStream::FixedNotation);
 
+    // Build a list of columns in fixed order as defined in the enum to
+    // avoid issues with different column order in table
+    QStringList columns;
+    for(int i = csv::FIRST_COL; i <= csv::LAST_COL; i++)
+    {
+      std::pair<QString, QString> col = csv::COL_MAP.value(i);
+      if(col.first != idColumnName)
+        columns.append(col.first + " as \"" + col.second + "\"");
+    }
+
     SqlUtil util(db);
-    SqlQuery query(util.buildSelectStatement(tableName, util.buildColumnList(tableName, {idColumnName})), db);
+    SqlQuery query(util.buildSelectStatement(tableName, columns), db);
     SqlExport sqlExport;
+    sqlExport.setHeader(header);
+
+    // Add callbacks to converting Gzipped BLOBs to strings
+    // Convert to empty string if export should be skipped
+    sqlExport.addConversionFunc(exportPlan ? blobConversionFunction : blobConversionFunctionEmpty,
+                                csv::COL_MAP.value(csv::FLIGHTPLAN).second);
+    sqlExport.addConversionFunc(exportPerf ? blobConversionFunction : blobConversionFunctionEmpty,
+                                csv::COL_MAP.value(csv::AIRCRAFT_PERF).second);
+    sqlExport.addConversionFunc(exportGpx ? blobConversionFunction : blobConversionFunctionEmpty,
+                                csv::COL_MAP.value(csv::AIRCRAFT_TRAIL).second);
     exported = sqlExport.printResultSet(query, out);
     file.close();
   }
@@ -446,16 +526,72 @@ int LogdataManager::exportCsv(const QString& filepath)
   return exported;
 }
 
+QString LogdataManager::blobConversionFunctionEmpty(const QVariant&)
+{
+  return QString();
+}
+
+QString LogdataManager::blobConversionFunction(const QVariant& value)
+{
+  if(value.isValid() && !value.isNull() && value.type() == QVariant::ByteArray)
+    return QString(atools::zip::gzipDecompress(value.toByteArray()));
+
+  return QString();
+}
+
 void LogdataManager::updateSchema()
 {
-  if(!db->record(tableName).contains("route_string"))
-  {
-    qDebug() << Q_FUNC_INFO;
+  addColumnIf("route_string", "varchar(1024)");
+  addColumnIf("flightplan", "blob");
+  addColumnIf("aircraft_perf", "blob");
+  addColumnIf("aircraft_trail", "blob");
+}
 
-    SqlTransaction transaction(db);
-    // Add missing column
-    db->exec("alter table " + tableName + " add column route_string varchar(1024)");
-    transaction.commit();
+const atools::geo::LineString *LogdataManager::getRouteGeometry(int id)
+{
+  return geometryInternal(routeGeometryCache, id, true /* route */);
+}
+
+void LogdataManager::clearGeometryCache()
+{
+  routeGeometryCache.clear();
+  trackGeometryCache.clear();
+}
+
+bool LogdataManager::hasRouteAttached(int id)
+{
+  return hasBlob(id, "flightplan");
+}
+
+bool LogdataManager::hasPerfAttached(int id)
+{
+  return hasBlob(id, "aircraft_perf");
+}
+
+bool LogdataManager::hasTrackAttached(int id)
+{
+  return hasBlob(id, "aircraft_trail");
+}
+
+const atools::geo::LineString *LogdataManager::getTrackGeometry(int id)
+{
+  return geometryInternal(trackGeometryCache, id, false /* route */);
+}
+
+const atools::geo::LineString *LogdataManager::geometryInternal(QCache<int, atools::geo::LineString>& cache, int id,
+                                                                bool route)
+{
+  if(cache.contains(id))
+    return cache.object(id);
+  else
+  {
+    atools::geo::LineString *geo = new atools::geo::LineString;
+    if(route)
+      atools::fs::pln::FlightplanIO().loadGpxGz(geo, nullptr, getValue(id, "aircraft_trail").toByteArray());
+    else
+      atools::fs::pln::FlightplanIO().loadGpxGz(nullptr, geo, getValue(id, "aircraft_trail").toByteArray());
+    cache.insert(id, geo);
+    return geo;
   }
 }
 

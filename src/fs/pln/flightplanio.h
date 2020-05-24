@@ -26,6 +26,9 @@ class QXmlStreamReader;
 class QXmlStreamWriter;
 
 namespace atools {
+namespace util {
+class XmlStream;
+}
 namespace geo {
 class LineString;
 class Pos;
@@ -67,6 +70,21 @@ public:
    */
   void saveLnm(const atools::fs::pln::Flightplan& plan, const QString& filename);
 
+  /* Same as above but returns the LNMPLN in a string */
+  QString saveLnmStr(const Flightplan& plan);
+
+  /* Same as above but returns the LNMPLN in a Gzip compressed byte array */
+  QByteArray saveLnmGz(const Flightplan& plan);
+
+  /* Load LNMPLN from file */
+  void loadLnm(atools::fs::pln::Flightplan& plan, const QString& filename);
+
+  /* Load LNMPLN from string */
+  void loadLnmStr(atools::fs::pln::Flightplan& plan, const QString& string);
+
+  /* Load LNMPLN from Gzip compressed byte array */
+  void loadLnmGz(atools::fs::pln::Flightplan& plan, const QByteArray& bytes);
+
   /* FSX/P3D XML format */
   void savePln(const atools::fs::pln::Flightplan& plan, const QString& file);
 
@@ -91,6 +109,30 @@ public:
   void saveGpx(const atools::fs::pln::Flightplan& plan, const QString& filename, const atools::geo::LineString& track,
                const QVector<quint32>& timestamps, int cruiseAltFt);
 
+  /* Same as above but returns the file in a string */
+  QString saveGpxStr(const atools::fs::pln::Flightplan& plan, const atools::geo::LineString& track,
+                     const QVector<quint32>& timestamps, int cruiseAltFt);
+
+  /* Same as above but returns the file in a Gzip compressed byte array */
+  QByteArray saveGpxGz(const atools::fs::pln::Flightplan& plan, const atools::geo::LineString& track,
+                       const QVector<quint32>& timestamps, int cruiseAltFt);
+
+  /* Loads GPX route coordinates and track points into LineStrings.
+   * Reading is limited to files exported by this class.
+   * track and route can be null and will be ignored then */
+  void loadGpxStr(atools::geo::LineString *route, atools::geo::LineString *track, const QString& string);
+  void loadGpxGz(atools::geo::LineString *route, atools::geo::LineString *track, const QByteArray& bytes);
+  void loadGpx(atools::geo::LineString *route, atools::geo::LineString *track, const QString& filename);
+
+  /* Garmin FPL (XML) format for Reality XP GNS XML. */
+  void saveGarminFpl(const atools::fs::pln::Flightplan& flightplan, const QString& filename,
+                     atools::fs::pln::SaveOptions options);
+  void loadGarminFpl(atools::fs::pln::Flightplan& plan, const QString& filename);
+  void loadGarminFplStr(atools::fs::pln::Flightplan& plan, const QString& string);
+  void loadGarminFplGz(atools::fs::pln::Flightplan& plan, const QByteArray& bytes);
+
+  /* Export only formats below ================================================================ */
+
   /* Majestic Dash 400 binary format */
   void saveFpr(const atools::fs::pln::Flightplan& plan, const QString& filename);
 
@@ -99,10 +141,6 @@ public:
 
   /* PLN for Blackbox Simulations Airbus. Same as FS9 PLN format. */
   void saveBbsPln(const atools::fs::pln::Flightplan& plan, const QString& filename);
-
-  /* Reality XP GNS XML format. */
-  void saveGarminGns(const atools::fs::pln::Flightplan& flightplan, const QString& filename,
-                     atools::fs::pln::SaveOptions options);
 
   /* Feelthere/Wilco Embraer */
   void saveFeelthereFpl(const atools::fs::pln::Flightplan& plan, const QString& filename, int groundSpeed);
@@ -124,15 +162,21 @@ public:
   void saveTfdi(const Flightplan& plan, const QString& filename, const QBitArray& jetAirways);
 
   /* Version number to save into LNMPLN files */
-  static const int LNM_VERSION_MAJOR = 0;
-  static const int LNM_VERSION_MINOR = 9;
+  static const int LNMPLN_VERSION_MAJOR = 0;
+  static const int LNMPLN_VERSION_MINOR = 9;
 
 private:
   void savePlnInternal(const Flightplan& plan, const QString& filename, bool annotated);
   void saveFmsInternal(const atools::fs::pln::Flightplan& plan, const QString& filename, bool version11Format);
+  void saveLnmInternal(QXmlStreamWriter& writer, const Flightplan& plan);
+  void saveGpxInternal(const atools::fs::pln::Flightplan& plan, QXmlStreamWriter& writer, const geo::LineString& track,
+                       const QVector<quint32>& timestamps, int cruiseAltFt);
+  void loadLnmInternal(Flightplan& plan, atools::util::XmlStream& xmlStream);
+  void loadGpxInternal(atools::geo::LineString *route, atools::geo::LineString *track, util::XmlStream& xmlStream);
+  void loadGarminFplInternal(Flightplan& plan, util::XmlStream& xmlStream);
+  atools::fs::pln::entry::WaypointType garminToWaypointType(const QString& typeStr) const;
 
   /* Load specific formats after content detection */
-  void loadLnm(atools::fs::pln::Flightplan& plan, const QString& filename);
   void loadFsx(atools::fs::pln::Flightplan& plan, const QString& filename);
   void loadFs9(atools::fs::pln::Flightplan& plan, const QString& filename);
   void loadFlp(atools::fs::pln::Flightplan& plan, const QString& filename);
@@ -155,8 +199,7 @@ private:
 
   QString gnsType(const atools::fs::pln::FlightplanEntry& entry);
 
-  void readUntilElement(QXmlStreamReader& reader, const QString& name);
-  void readWaypoint(Flightplan& plan, QXmlStreamReader& reader);
+  void readWaypoint(Flightplan& plan, util::XmlStream& xmlStream);
   void posToRte(QTextStream& stream, const atools::geo::Pos& pos, bool alt);
 
   /* Support for FlightGear propery lists */
@@ -176,18 +219,11 @@ private:
 
   /* Read "Pos" element and attributes from stream in LNM XML format */
   atools::geo::Pos readPosLnm(QXmlStreamReader& reader);
+  atools::geo::Pos readPosGpx(QXmlStreamReader& reader);
 
   /* Read waypoint elements and attributes from stream */
-  void readWaypointsLnm(QXmlStreamReader& reader, QList<FlightplanEntry>& entries, const QString& elementName);
-
-  /* Read until next element and checks error. Throws exception in case of error */
-  bool readNextStartElement(QXmlStreamReader& reader);
-
-  /* Skip element and optionally print a warning about unexpected elements */
-  void skipCurrentElement(QXmlStreamReader& reader, bool warning = false);
-
-  /* Checks error. Throws exception in case of error */
-  void checkError(QXmlStreamReader& reader);
+  void readWaypointsLnm(atools::util::XmlStream& xmlStream, QList<FlightplanEntry>& entries,
+                        const QString& elementName);
 
   /* Set altitude in all positions */
   void assignAltitudeToAllEntries(Flightplan& plan);
@@ -202,6 +238,7 @@ private:
   void writeWaypointLnm(QXmlStreamWriter& writer, const FlightplanEntry& entry, const QString& elementName);
 
   QString errorMsg;
+
 };
 
 } // namespace pln

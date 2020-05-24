@@ -262,6 +262,7 @@ HEADERS += \
   src/util/timedcache.h \
   src/util/updatecheck.h \
   src/util/version.h \
+  src/util/xmlstream.h \
   src/win/activationcontext.h \
   src/wmm/GeomagnetismHeader.h \
   src/wmm/magdectool.h \
@@ -375,6 +376,7 @@ src/track/trackreader.cpp \
   src/util/timedcache.cpp \
   src/util/updatecheck.cpp \
   src/util/version.cpp \
+  src/util/xmlstream.cpp \
   src/win/activationcontext.cpp \
   src/wmm/GeomagnetismLibrary.c \
   src/wmm/magdectool.cpp \

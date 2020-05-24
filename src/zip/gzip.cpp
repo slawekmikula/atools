@@ -20,6 +20,7 @@
 #include "zip/gzip.h"
 
 #include <QByteArray>
+#include <QFile>
 
 #define GZIP_WINDOWS_BIT 15 + 16
 #define GZIP_CHUNK_SIZE 32 * 1024
@@ -33,7 +34,7 @@ bool gzipCompress(const QByteArray& input, QByteArray& output, int level)
   output.clear();
 
   // Is there something to do?
-  if(input.length())
+  if(!input.isEmpty())
   {
     // Declare vars
     int flush = 0;
@@ -183,13 +184,13 @@ bool gzipDecompress(const QByteArray& input, QByteArray& output)
         {
           case Z_NEED_DICT:
             ret = Z_DATA_ERROR;
+            inflateEnd(&strm);
+            return false;
+
           case Z_DATA_ERROR:
           case Z_MEM_ERROR:
           case Z_STREAM_ERROR:
-            // Clean-up
             inflateEnd(&strm);
-
-            // Return
             return false;
         }
 
@@ -212,6 +213,41 @@ bool gzipDecompress(const QByteArray& input, QByteArray& output)
   }
   else
     return true;
+}
+
+bool isGzipCompressed(const QString& filename)
+{
+  if(QFile::exists(filename))
+  {
+    QFile file(filename);
+    if(file.open(QIODevice::ReadOnly))
+      return isGzipCompressed(file.read(10));
+  }
+
+  return false;
+}
+
+bool isGzipCompressed(const QByteArray& bytes)
+{
+  return bytes.size() >= 2 && bytes.at(0) == '\x1F' && bytes.at(1) == '\x8B';
+}
+
+QByteArray gzipCompress(const QByteArray& input, int level)
+{
+  QByteArray retval;
+  if(!input.isEmpty() && gzipCompress(input, retval, level))
+    return retval;
+  else
+    return QByteArray();
+}
+
+QByteArray gzipDecompress(const QByteArray& input)
+{
+  QByteArray retval;
+  if(!input.isEmpty() && gzipDecompress(input, retval))
+    return retval;
+  else
+    return QByteArray();
 }
 
 } // namespace zip
