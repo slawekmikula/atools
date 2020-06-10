@@ -62,13 +62,13 @@ bool RouteFinder::calculateRoute(const atools::geo::Pos& from, const atools::geo
   network->setParameters(from, to, altitude, mode);
   startNode = network->getDepartureNode();
   destNode = network->getDestinationNode();
-  int totalDist = atools::roundToInt(network->getDirectDistanceMeter(startNode, destNode));
-  int lastDist = totalDist;
+  totalDist = atools::roundToInt(network->getDirectDistanceMeter(startNode, destNode));
+  lastDist = totalDist;
 
   openNodesHeap.pushData(startNode.index, 0);
   at(nodeAltRangeMaxArr, startNode.index) = std::numeric_limits<quint16>::max();
 
-  qint64 time = QDateTime::currentMSecsSinceEpoch();
+  time = QDateTime::currentSecsSinceEpoch();
 
   Node currentNode;
   bool destinationFound = false;
@@ -86,26 +86,15 @@ bool RouteFinder::calculateRoute(const atools::geo::Pos& from, const atools::geo
     currentNode = network->getNode(currentIndex);
 
     // Invoke user callback if set
-    if(callback)
-    {
-      qint64 now = QDateTime::currentMSecsSinceEpoch();
-      if(now > time + 200)
-      {
-        int dist = atools::roundToInt(network->getDirectDistanceMeter(currentNode, destNode));
-        if(dist < lastDist)
-          lastDist = dist;
-        time = now;
-
-        if(!callback(totalDist, lastDist))
-          break;
-      }
-    }
+    if(!invokeCallback(currentNode))
+      break;
 
     // Contains nodes with known shortest path
     at(closedNodes, currentNode.index) = true;
 
     // Work on successors
-    expandNode(currentNode, at(edgePredecessorArr, currentNode.index));
+    if(!expandNode(currentNode, at(edgePredecessorArr, currentNode.index)))
+      break;
   }
 
   qDebug() << Q_FUNC_INFO << "found" << destinationFound << "heap size" << openNodesHeap.size()
@@ -114,7 +103,25 @@ bool RouteFinder::calculateRoute(const atools::geo::Pos& from, const atools::geo
   return destinationFound;
 }
 
-void RouteFinder::expandNode(const atools::routing::Node& currentNode, const atools::routing::Edge& prevEdge)
+bool RouteFinder::invokeCallback(const atools::routing::Node& currentNode)
+{
+  if(callback)
+  {
+    qint64 now = QDateTime::currentSecsSinceEpoch();
+    if(now > time)
+    {
+      int dist = atools::roundToInt(network->getDirectDistanceMeter(currentNode, destNode));
+      if(dist < lastDist)
+        lastDist = dist;
+      time = now;
+
+      return callback(totalDist, lastDist);
+    }
+  }
+  return true;
+}
+
+bool RouteFinder::expandNode(const atools::routing::Node& currentNode, const atools::routing::Edge& prevEdge)
 {
   successors.clear();
   network->getNeighbours(successors, currentNode, &prevEdge);
@@ -133,6 +140,10 @@ void RouteFinder::expandNode(const atools::routing::Node& currentNode, const ato
 
     const Node& successor = network->getNode(successorIndex);
     const Edge& edge = successors.edges.at(i);
+
+    // Invoke user callback if set
+    if(!invokeCallback(successor))
+      return false;
 
     int successorEdgeCosts = calculateEdgeCost(currentNode, successor, edge, currentEdgeAirwayHash);
 
@@ -170,6 +181,7 @@ void RouteFinder::expandNode(const atools::routing::Node& currentNode, const ato
     else
       openNodesHeap.push(successorIndex, totalCost);
   }
+  return true;
 }
 
 int RouteFinder::calculateEdgeCost(const atools::routing::Node& currentNode,
@@ -188,22 +200,6 @@ int RouteFinder::calculateEdgeCost(const atools::routing::Node& currentNode,
       // From departure node to network or from network to destination
       // Calculate transition to next airway
       float airwayTransCost = 1.f;
-
-      if(preferVorToAirway)
-      {
-        if(currentNode.isDeparture() && (successorNode.subtype == NODE_VOR || successorNode.subtype == NODE_VORDME))
-          airwayTransCost *= COST_FACTOR_FORCE_CLOSE_RADIONAV_VOR;
-        else if((currentNode.subtype == NODE_VOR || currentNode.subtype == NODE_VORDME) &&
-                successorNode.isDestination())
-          airwayTransCost *= COST_FACTOR_FORCE_CLOSE_RADIONAV_VOR;
-      }
-
-      if(preferNdbToAirway)
-      {
-        if((currentNode.type == NODE_DEPARTURE && successorNode.subtype == NODE_NDB) ||
-           (currentNode.subtype == NODE_NDB && successorNode.type == NODE_DESTINATION))
-          airwayTransCost *= COST_FACTOR_FORCE_CLOSE_RADIONAV_NDB;
-      }
 
       if(airwayTransCost > 1.f)
         // Prefer VOR or NDB

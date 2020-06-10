@@ -137,6 +137,12 @@ const static QHash<int, std::pair<QString,QString>> COL_MAP =
 }
 /* *INDENT-ON* */
 
+struct GpxCacheEntry
+{
+  atools::geo::LineString route, track;
+  QStringList names;
+};
+
 LogdataManager::LogdataManager(sql::SqlDatabase *sqlDb)
   : DataManagerBase(sqlDb, "logbook", "logbook_id",
                     ":/atools/resources/sql/fs/logbook/create_logbook_schema.sql",
@@ -483,17 +489,14 @@ int LogdataManager::importXplane(const QString& filepath,
 
 }
 
-int LogdataManager::exportCsv(const QString& filepath, bool exportPlan, bool exportPerf, bool exportGpx, bool header)
+int LogdataManager::exportCsv(const QString& filepath, const QVector<int>& ids, bool exportPlan, bool exportPerf,
+                              bool exportGpx, bool header, bool append)
 {
-  int exported = 0;
+  bool endsWithEol = atools::fileEndsWithEol(filepath);
+  int numExported = 0;
   QFile file(filepath);
-  if(file.open(QIODevice::WriteOnly | QIODevice::Text))
+  if(file.open((append ? QIODevice::Append : QIODevice::WriteOnly) | QIODevice::Text))
   {
-    QTextStream out(&file);
-    out.setCodec("UTF-8");
-    out.setRealNumberPrecision(5);
-    out.setRealNumberNotation(QTextStream::FixedNotation);
-
     // Build a list of columns in fixed order as defined in the enum to
     // avoid issues with different column order in table
     QStringList columns;
@@ -504,10 +507,22 @@ int LogdataManager::exportCsv(const QString& filepath, bool exportPlan, bool exp
         columns.append(col.first + " as \"" + col.second + "\"");
     }
 
+    // Use query wrapper to automatically use passed ids or all rows
     SqlUtil util(db);
-    SqlQuery query(util.buildSelectStatement(tableName, columns), db);
+    QueryWrapper query(util.buildSelectStatement(tableName, columns), db, ids, idColumnName);
+
+    QTextStream stream(&file);
+    stream.setCodec("UTF-8");
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+
+    if(!endsWithEol && append)
+      // Add needed linefeed for append
+      stream << endl;
+
     SqlExport sqlExport;
+    sqlExport.setEndline(false);
     sqlExport.setHeader(header);
+    sqlExport.setNumberPrecision(5);
 
     // Add callbacks to converting Gzipped BLOBs to strings
     // Convert to empty string if export should be skipped
@@ -517,13 +532,29 @@ int LogdataManager::exportCsv(const QString& filepath, bool exportPlan, bool exp
                                 csv::COL_MAP.value(csv::AIRCRAFT_PERF).second);
     sqlExport.addConversionFunc(exportGpx ? blobConversionFunction : blobConversionFunctionEmpty,
                                 csv::COL_MAP.value(csv::AIRCRAFT_TRAIL).second);
-    exported = sqlExport.printResultSet(query, out);
+
+    bool first = true;
+    query.exec();
+    while(query.next())
+    {
+      if(first && header)
+      {
+        // Write header
+        first = false;
+        stream << sqlExport.getResultSetHeader(query.q.record()) << endl;
+      }
+      SqlRecord record = query.q.record();
+
+        // Write row
+      stream << sqlExport.getResultSetRow(record) << endl;
+      numExported++;
+    }
+
     file.close();
   }
   else
-    throw atools::Exception(tr("Cannot open backup file %1. Reason: %2 (%3)").
-                            arg(filepath).arg(file.errorString()).arg(file.error()));
-  return exported;
+    throw atools::Exception(tr("Cannot open file \"%1\". Reason: %2.").arg(filepath).arg(file.errorString()));
+  return numExported;
 }
 
 QString LogdataManager::blobConversionFunctionEmpty(const QVariant&)
@@ -547,15 +578,9 @@ void LogdataManager::updateSchema()
   addColumnIf("aircraft_trail", "blob");
 }
 
-const atools::geo::LineString *LogdataManager::getRouteGeometry(int id)
-{
-  return geometryInternal(routeGeometryCache, id, true /* route */);
-}
-
 void LogdataManager::clearGeometryCache()
 {
-  routeGeometryCache.clear();
-  trackGeometryCache.clear();
+  cache.clear();
 }
 
 bool LogdataManager::hasRouteAttached(int id)
@@ -573,25 +598,32 @@ bool LogdataManager::hasTrackAttached(int id)
   return hasBlob(id, "aircraft_trail");
 }
 
-const atools::geo::LineString *LogdataManager::getTrackGeometry(int id)
+const atools::geo::LineString *LogdataManager::getRouteGeometry(int id)
 {
-  return geometryInternal(trackGeometryCache, id, false /* route */);
+  loadGpx(id);
+  return &cache.object(id)->route;
 }
 
-const atools::geo::LineString *LogdataManager::geometryInternal(QCache<int, atools::geo::LineString>& cache, int id,
-                                                                bool route)
+const QStringList *LogdataManager::getRouteNames(int id)
 {
-  if(cache.contains(id))
-    return cache.object(id);
-  else
+  loadGpx(id);
+  return &cache.object(id)->names;
+}
+
+const atools::geo::LineString *LogdataManager::getTrackGeometry(int id)
+{
+  loadGpx(id);
+  return &cache.object(id)->track;
+}
+
+void LogdataManager::loadGpx(int id)
+{
+  if(!cache.contains(id))
   {
-    atools::geo::LineString *geo = new atools::geo::LineString;
-    if(route)
-      atools::fs::pln::FlightplanIO().loadGpxGz(geo, nullptr, getValue(id, "aircraft_trail").toByteArray());
-    else
-      atools::fs::pln::FlightplanIO().loadGpxGz(nullptr, geo, getValue(id, "aircraft_trail").toByteArray());
-    cache.insert(id, geo);
-    return geo;
+    GpxCacheEntry *entry = new GpxCacheEntry;
+    atools::fs::pln::FlightplanIO().loadGpxGz(&entry->route, &entry->names, &entry->track,
+                                              getValue(id, "aircraft_trail").toByteArray());
+    cache.insert(id, entry);
   }
 }
 

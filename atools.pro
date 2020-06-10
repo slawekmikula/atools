@@ -177,8 +177,8 @@ HEADERS += \
   src/fs/weather/metarindex.h \
   src/fs/weather/metarparser.h \
   src/fs/weather/noaaweatherdownloader.h \
+  src/fs/weather/weatherdownloadbase.h \
   src/fs/weather/weathernetdownload.h \
-  src/fs/weather/weathernetsingle.h \
   src/fs/weather/weathertypes.h \
   src/fs/weather/xpweatherreader.h \
   src/geo/calculations.h \
@@ -187,7 +187,6 @@ HEADERS += \
   src/geo/point3d.h \
   src/geo/pos.h \
   src/geo/rect.h \
-  src/geo/simplespatialindex.h \
   src/geo/nanoflann.h \
   src/geo/spatialindex.h \
   src/grib/windquery.h \
@@ -259,6 +258,7 @@ HEADERS += \
   src/util/paintercontextsaver.h \
   src/util/properties.h \
   src/util/roundedpolygon.h \
+  src/util/str.h \
   src/util/timedcache.h \
   src/util/updatecheck.h \
   src/util/version.h \
@@ -294,8 +294,8 @@ SOURCES += \
   src/fs/weather/metarindex.cpp \
   src/fs/weather/metarparser.cpp \
   src/fs/weather/noaaweatherdownloader.cpp \
+  src/fs/weather/weatherdownloadbase.cpp \
   src/fs/weather/weathernetdownload.cpp \
-  src/fs/weather/weathernetsingle.cpp \
   src/fs/weather/weathertypes.cpp \
   src/fs/weather/xpweatherreader.cpp \
   src/geo/calculations.cpp \
@@ -304,7 +304,6 @@ SOURCES += \
   src/geo/point3d.cpp \
   src/geo/pos.cpp \
   src/geo/rect.cpp \
-  src/geo/simplespatialindex.cpp \
   src/geo/spatialindex.cpp \
   src/grib/windquery.cpp \
   src/gui/actionstatesaver.cpp \
@@ -373,6 +372,7 @@ src/track/trackreader.cpp \
   src/util/paintercontextsaver.cpp \
   src/util/properties.cpp \
   src/util/roundedpolygon.cpp \
+  src/util/str.cpp \
   src/util/timedcache.cpp \
   src/util/updatecheck.cpp \
   src/util/version.cpp \

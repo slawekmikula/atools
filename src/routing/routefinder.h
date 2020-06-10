@@ -60,18 +60,6 @@ public:
    */
   bool calculateRoute(const atools::geo::Pos& from, const atools::geo::Pos& to, int flownAltitude, Modes mode);
 
-  /* Prefer VORs to transition from departure to airway network */
-  void setPreferVorToAirway(bool value)
-  {
-    preferVorToAirway = value;
-  }
-
-  /* Prefer NDBs to transition from departure to airway network */
-  void setPreferNdbToAirway(bool value)
-  {
-    preferNdbToAirway = value;
-  }
-
   /* Extract legs of shortest route and distance not including departure and destination. */
   void extractLegs(QVector<RouteLeg>& routeLegs, float& distanceMeter) const;
 
@@ -98,7 +86,7 @@ public:
 
 private:
   /* Expands a node by investigating all successors */
-  void expandNode(const atools::routing::Node& node, const Edge& prevEdge);
+  bool expandNode(const atools::routing::Node& node, const Edge& prevEdge);
 
   /* Calculates the costs to travel from current to successor. Base is the distance between the nodes in meter that
    * will have several factors applied to get reasonable routes */
@@ -117,6 +105,7 @@ private:
 
   void freeArrays();
   void allocArrays();
+  bool invokeCallback(const Node& currentNode);
 
   /* Avoid direct waypoint connections when using airways */
   float costFactorForceAirways = 1.3f;
@@ -131,11 +120,6 @@ private:
 
   /* Force algortihm to use close waypoints near start and destination */
   static Q_DECL_CONSTEXPR float COST_FACTOR_FORCE_CLOSE_NODES = 1.5f;
-
-  /* Force algortihm to use closest radio navaids near start and destination before waypoints */
-  /* Has to be smaller than COST_FACTOR_FORCE_CLOSE_NODES */
-  static Q_DECL_CONSTEXPR float COST_FACTOR_FORCE_CLOSE_RADIONAV_VOR = 1.1f;
-  static Q_DECL_CONSTEXPR float COST_FACTOR_FORCE_CLOSE_RADIONAV_NDB = 1.2f;
 
   /* Increase costs to force reception of at least one radio navaid along the route */
   static Q_DECL_CONSTEXPR float COST_FACTOR_UNREACHABLE_RADIONAV = 1.2f;
@@ -188,9 +172,11 @@ private:
   /* For RouteNetwork::getNeighbours to avoid instantiations */
   atools::routing::Result successors;
 
-  bool preferVorToAirway = false, preferNdbToAirway = false;
-
   RouteFinderCallbackType callback;
+  int totalDist = 0;
+  int lastDist = 0;
+  qint64 time = 0L;
+
 };
 
 } // namespace route

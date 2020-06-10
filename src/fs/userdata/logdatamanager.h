@@ -33,6 +33,8 @@ class SqlDatabase;
 namespace fs {
 namespace userdata {
 
+struct GpxCacheEntry;
+
 /*
  * Contains special functionality around the logbook database.
  */
@@ -47,7 +49,8 @@ public:
   int importCsv(const QString& filepath);
 
   /* Import and export from a custom CSV format which covers all fields in the logbook table. */
-  int exportCsv(const QString& filepath, bool exportPlan, bool exportPerf, bool exportGpx, bool header);
+  int exportCsv(const QString& filepath, const QVector<int>& ids, bool exportPlan, bool exportPerf,
+                bool exportGpx, bool header, bool append);
 
   /* Import X-Plane logbook. Needs a function fetchAirport
    * that resolves airport ident to name and position. */
@@ -59,10 +62,13 @@ public:
   void updateSchema();
 
   /* Get flight plan points from GPX attachment or database BLOB. Request is cached. */
-  const geo::LineString *getRouteGeometry(int id);
+  const atools::geo::LineString *getRouteGeometry(int id);
+
+  /* Get flight plan waypoint names. String list has the same size as getRouteGeometry */
+  const QStringList *getRouteNames(int id);
 
   /* Get aircraft track points from GPX attachment or database BLOB.Request is cached. */
-  const geo::LineString *getTrackGeometry(int id);
+  const atools::geo::LineString *getTrackGeometry(int id);
 
   /* Clear cache used by getRouteGeometry and getTrackGeometry */
   void clearGeometryCache();
@@ -102,10 +108,11 @@ private:
   /* Generate empty column if disabled in export options */
   static QString blobConversionFunctionEmpty(const QVariant&);
 
-  const atools::geo::LineString *geometryInternal(QCache<int, atools::geo::LineString>& cache, int id, bool route);
+  /* Prime cache by loading the GpxCacheEntry */
+  void loadGpx(int id);
 
   /* Cache to avoid reading BLOBs */
-  QCache<int, atools::geo::LineString> routeGeometryCache, trackGeometryCache;
+  QCache<int, GpxCacheEntry> cache;
 
 };
 

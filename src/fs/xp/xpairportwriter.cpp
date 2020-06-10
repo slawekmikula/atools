@@ -244,8 +244,8 @@ enum RunwayFieldIndex
 
 }
 
-// Remove square brackets from name
-const static QRegularExpression NAME_INDICATOR("\\[(h|s|g|x|mil)\\]", QRegularExpression::CaseInsensitiveOption);
+const static QRegularExpression REPLACE_SPECIAL_REGEXP("(\\[MIL\\]|\\[[A-Z]?\\])",
+                                                       QRegularExpression::CaseInsensitiveOption);
 
 XpAirportWriter::XpAirportWriter(atools::sql::SqlDatabase& sqlDb, atools::fs::common::AirportIndex *airportIndexParam,
                                  const NavDatabaseOptions& opts, ProgressHandler *progressHandler,
@@ -428,8 +428,11 @@ void XpAirportWriter::bindTaxiEdge(const QStringList& line, const atools::fs::xp
      nameCompare == QLatin1Literal("**") ||
      nameCompare == QLatin1Literal("+") ||
      nameCompare == QLatin1Literal("-") ||
+     nameCompare == QLatin1Literal("_") ||
+     nameCompare == QLatin1Literal(" ") ||
      nameCompare == QLatin1Literal(".") ||
      nameCompare == QLatin1Literal("TAXIWAY") ||
+     nameCompare == QLatin1Literal("TAXYWAY") ||
      nameCompare == QLatin1Literal("TAXI_TO_RAMP") ||
      nameCompare == QLatin1Literal("TAXI_RAMP") ||
      nameCompare == QLatin1Literal("TAXY_RAMP") ||
@@ -583,7 +586,7 @@ void XpAirportWriter::bindVasi(const QStringList& line, const atools::fs::xp::Xp
     atools::geo::LineDistance curResult, nearestResult;
     QString closestRunwayName;
     // Find nearest runway by distance where VASI is along line
-    for(const RwGeo& rg: runwayGeometry)
+    for(const RunwayGeo& rg: runwayGeometry)
     {
       // Calculate distance from VASI to runway
       rg.runway.distanceMeterToLine(vasiPos, curResult);
@@ -1019,13 +1022,15 @@ void XpAirportWriter::bindMetadata(const QStringList& line, const atools::fs::xp
   if(key == "gui_label")
     is3d = value.compare("3d", Qt::CaseInsensitive) == 0;
   else if(key == "icao_code")
-    insertAirportQuery->bindValue(":icao", value);
+    airportIcao = value;
   else if(key == "iata_code")
-    insertAirportQuery->bindValue(":iata", value);
+    airportIata = value;
   else if(key == "city")
     insertAirportQuery->bindValue(":city", value);
   else if(key == "country")
     insertAirportQuery->bindValue(":country", value);
+  else if(key == "flatten")
+    insertAirportQuery->bindValue(":flatten", value);
   else if(key.startsWith("region") && !value.isEmpty()) // Documentation is not clear - region_id or region_code
     insertAirportQuery->bindValue(":region", value);
   else if(key == "datum_lat" && atools::almostNotEqual(value.toFloat(), 0.f))
@@ -1041,6 +1046,7 @@ void XpAirportWriter::bindMetadata(const QStringList& line, const atools::fs::xp
   // 1302 faa_code SEA
   // 1302 iata_code SEA
   // 1302 icao_code KSEA
+  // 1302 local_code EKTH
 }
 
 void XpAirportWriter::writeHelipad(const QStringList& line, const atools::fs::xp::XpWriterContext& context)
@@ -1129,8 +1135,7 @@ void XpAirportWriter::bindRunway(const QStringList& line, AirportRowCode rowCode
   int secRwEndId = ++curRunwayEndId;
 
   // Add to index
-  airportIndex->addRunwayEnd(airportIdent, primaryName, primRwEndId);
-  airportIndex->addRunwayEnd(airportIdent, secondaryName, secRwEndId);
+  runways.append({primaryName, secondaryName, primRwEndId, secRwEndId});
 
   // Calculate heading and positions
   float lengthMeter = primaryPos.distanceMeterTo(secondaryPos);
@@ -1173,6 +1178,10 @@ void XpAirportWriter::bindRunway(const QStringList& line, AirportRowCode rowCode
   insertRunwayQuery->bindValue(":primary_end_id", primRwEndId);
   insertRunwayQuery->bindValue(":secondary_end_id", secRwEndId);
   insertRunwayQuery->bindValue(":surface", surfaceStr);
+  if(rowCode == LAND_RUNWAY)
+    insertRunwayQuery->bindValue(":smoothness", at(line, rw::SMOOTHNESS).toDouble());
+  else
+    insertRunwayQuery->bindValue(":smoothness", QVariant::Double);
 
   // Add shoulder surface (X-Plane only)
   int shoulder = at(line, rw::SHOULDER_SURFACE).toInt();
@@ -1373,7 +1382,7 @@ void XpAirportWriter::bindAirport(const QStringList& line, AirportRowCode rowCod
 
   writeAirportFile(airportIdent, context.curFileId);
 
-  if(!airportIndex->addAirport(airportIdent, airportId) || !options.isIncludedAirportIdent(airportIdent))
+  if(!airportIndex->addAirportIdent(airportIdent) || !options.isIncludedAirportIdent(airportIdent))
     // Airport was already read before - ignore it completely
     ignoringAirport = true;
   else
@@ -1387,23 +1396,21 @@ void XpAirportWriter::bindAirport(const QStringList& line, AirportRowCode rowCod
 
     airportAltitude = line.value(ap::ELEVATION).toFloat();
 
-    QString name = mid(line, ap::NAME, true /* ignore error */);
+    QString name = mid(line, ap::NAME, true /* ignore error */).simplified();
     airportClosed = atools::fs::util::isNameClosed(name);
+    bool military = atools::fs::util::isNameMilitary(name);
 
-    if(NAME_INDICATOR.match(name).hasMatch())
-      // Remove [H], [S], [g] and [mil] indicators
-      name = name.replace(NAME_INDICATOR, "").trimmed();
+    // Remove [H], [S], [g], [x] and [mil] indicators
+    name.replace(REPLACE_SPECIAL_REGEXP, QString());
 
     // Check military before converting to caps
-    bool isMil = atools::fs::util::isNameMilitary(name);
-    name = atools::fs::util::capAirportName(name);
+    name = atools::fs::util::capAirportName(name.simplified());
 
-    insertAirportQuery->bindValue(":ident", airportIdent);
     insertAirportQuery->bindValue(":name", name);
     insertAirportQuery->bindValue(":fuel_flags", 0); // not available
     insertAirportQuery->bindValue(":has_tower_object", 0);
     insertAirportQuery->bindValue(":is_closed", airportClosed); // extracted from name
-    insertAirportQuery->bindValue(":is_military", isMil);
+    insertAirportQuery->bindValue(":is_military", military);
     insertAirportQuery->bindValue(":is_addon", context.flags.testFlag(IS_ADDON));
     insertAirportQuery->bindValue(":num_boundary_fence", 0);
 
@@ -1435,8 +1442,11 @@ void XpAirportWriter::reset()
   curHelipadStartNumber = 0;
   airportRowCode = NO_ROWCODE;
   airportIdent.clear();
+  airportIata.clear();
+  airportIcao.clear();
   runwayEndRecords.clear();
   runwayGeometry.clear();
+  runways.clear();
   taxiNodes.clear();
   largestParkingGate.clear();
   largestParkingRamp.clear();
@@ -1450,6 +1460,37 @@ void XpAirportWriter::finishAirport(const XpWriterContext& context)
 {
   if(writingAirport && !ignoringAirport)
   {
+    // Ident: Airport ICAO code. If no ICAO code exists, use X +
+    // local identifier to create fictional code.
+    // Maximum seven characters. Must be unique.
+
+    // Determine best ident - preferrably ICAO
+
+    // Set always for disambiguation and add-on overloading
+    insertAirportQuery->bindValue(":xpident", airportIdent);
+
+    QString apIdent;
+
+    if(airportIdent == airportIcao || airportIcao.isEmpty())
+      // Ident is equal to ICAO or no ICAO - fill only ident which is considered ICAO
+      apIdent = airportIdent;
+    else
+      // Not equal and ICAO given - use ICAO as ident
+      apIdent = airportIcao;
+
+    insertAirportQuery->bindValue(":ident", apIdent);
+    insertAirportQuery->bindValue(":iata", airportIata);
+
+    // Only used for duplicates
+    insertAirportQuery->bindValue(":icao", QVariant(QVariant::String));
+
+    airportIndex->addAirportId(apIdent, curAirportId);
+    for(const Runway& rw : runways)
+    {
+      airportIndex->addRunwayEnd(apIdent, rw.primaryName, rw.primaryEndId);
+      airportIndex->addRunwayEnd(apIdent, rw.secondaryName, rw.secondaryEndId);
+    }
+
     // Update counts
     insertAirportQuery->bindValue(":longest_runway_length", longestRunwayLength);
     insertAirportQuery->bindValue(":longest_runway_width", longestRunwayWidth);

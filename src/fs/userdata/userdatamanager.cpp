@@ -62,7 +62,8 @@ enum Index
   DESCRIPTION = 8,
   REGION = 9,
   VISIBLE_FROM = 10,
-  LAST_EDIT = 11
+  LAST_EDIT = 11,
+  IMPORT_FILENAME = 12
 };
 
 }
@@ -390,10 +391,18 @@ int UserdataManager::exportCsv(const QString& filepath, const QVector<int>& ids,
     sqlExport.setHeader(flags & CSV_HEADER);
     sqlExport.setNumberPrecision(5);
 
-    QueryWrapper query("select type as Type, name as Name, ident as Ident, laty as Latitude, lonx as Longitude, altitude as Elevation, "
-                       "0 as \"Magnetic Declination\", tags as Tags, description as Description, region as Region, "
+    // Use query wrapper to automatically use passed ids or all rows
+    QueryWrapper query("select type as Type, "
+                       "name as Name, "
+                       "ident as Ident, "
+                       "laty as Latitude, lonx as Longitude, altitude as Elevation, "
+                       "0 as \"Magnetic Declination\", "
+                       "tags as Tags, "
+                       "description as Description, "
+                       "region as Region, "
                        "cast(visible_from as integer) as \"Visible From\", "
-                       "last_edit_timestamp as \"Last Edit\" from " + tableName,
+                       "last_edit_timestamp as \"Last Edit\", "
+                       "import_file_path as \"Import Filename\" from " + tableName,
                        db, ids,
                        idColumnName);
 
@@ -408,6 +417,7 @@ int UserdataManager::exportCsv(const QString& filepath, const QVector<int>& ids,
     {
       if(first && flags & CSV_HEADER)
       {
+        // Write header
         first = false;
         stream << sqlExport.getResultSetHeader(query.q.record()) << endl;
       }
@@ -421,6 +431,7 @@ int UserdataManager::exportCsv(const QString& filepath, const QVector<int>& ids,
       // Need to cast otherwise it is not recognized as a floating point number
       record.setValue("Magnetic Declination", static_cast<double>(magvar));
 
+      // Write row
       stream << sqlExport.getResultSetRow(record) << endl;
       numExported++;
     }

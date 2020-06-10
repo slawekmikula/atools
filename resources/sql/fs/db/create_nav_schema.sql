@@ -30,6 +30,7 @@ create table waypoint
   ident varchar(5),                   -- ICAO ident
   region varchar(2),                  -- ICAO two letter region identifier
   airport_id integer,                 -- Reference to airport if applicable
+  artificial integer,                 -- Created for VOR and NDB navaids to support airway generation
   type varchar(15),                   -- see enum atools::fs::bgl::nav::WaypointType
                                       -- N = NDB, OA = off airway, V = VOR, WN = named waypoint, WU = unnamed waypoint
   num_victor_airway integer not null, -- Number of victor (low altitude) airways crossing this waypoint
@@ -63,7 +64,7 @@ create table vor
                                 -- TC = TACAN, VTH = high VORTAC, VTL = low VORTAC, VTT = terminal VORTAC
   frequency integer,            -- Frequency - MHz * 1000
   channel varchar(5),           -- TACAN channel
-  range integer not null,       -- Navaid radio range in NM
+  range integer,                -- Navaid radio range in NM
   mag_var double,               -- Magnetic variance in degree < 0 for West and > 0 for East
                                 -- Will be calculated if null
   dme_only integer not null,    -- 1 if this is only a DME

@@ -21,6 +21,7 @@
 #include <QVector>
 
 class QTranslator;
+class QLocale;
 
 namespace atools {
 namespace gui {
@@ -55,6 +56,11 @@ public:
   /* Unloads all translations and frees associated resources */
   static void unload();
 
+  /* Find all translation files in the given path and return the related locale objects.
+   * The locale "en" is always added. Looks at executable working directory and "translations".
+   *  Files are detected by file pattern "applicationbasename_XX_YY.qm" where "_YY" (region/country) is optional. */
+  static QVector<QLocale> findTranslationFiles();
+
 private:
   Translator()
   {
@@ -63,6 +69,7 @@ private:
 
   static bool loadAndInstall(const QString& name, const QString& dir, const QString& language);
   static bool loadApp(const QString& appBaseName, const QString& appPath, const QString& language);
+  static QVector<QLocale> findTranslationFilesInternal(const QString& path);
 
   static QVector<QTranslator *> translators;
   static bool loaded;

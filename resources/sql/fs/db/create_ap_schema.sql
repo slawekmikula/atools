@@ -27,15 +27,17 @@ drop table if exists airport;
 create table airport
 (
   airport_id integer primary key,
-  file_id integer not null,                   -- BGL file id
-  ident varchar(10) not null,                 -- ICAO ident or X-Plane airport ID
-  icao varchar(10),                           -- ICAO ident
+  file_id integer not null,                   -- BGL or apt.dat file id
+  ident varchar(10) not null,                 -- ICAO ident or X-Plane internal airport ID for duplicate ICAO
+  icao varchar(10),                           -- ICAO ident if available and different from ident
   iata varchar(10),                           -- IATA ident if available
+  xpident varchar(10),                        -- X-Plane internal ident. Always filled for X-Plane databases.
   name varchar(50) collate nocase,
   city varchar(50) collate nocase,
   state varchar(50) collate nocase,
-  country varchar(50) collate nocase,
+  country varchar(50) collate nocase,         -- Country name or area code in case of DFD
   region varchar(4) collate nocase,           -- ICAO region like DE, LF, K6 - not used for search
+  flatten integer,                            -- 1302 flatten 1. 0, 1 or null. X-Plane only.
   fuel_flags integer not null,                -- see enum atools::fs::bgl::ap::FuelFlags
   has_avgas integer not null,                 -- boolean
   has_jetfuel integer not null,               -- "
@@ -368,6 +370,7 @@ create table runway
   surface varchar(15),                  -- see enum atools::fs::bgl::rw::Surface
                                         -- Additional surface types are unspecified hard "UH" and unspecified soft "US"
                                         -- which are used for data not originating from flight simulator
+  smoothness double,                    -- 0.00 (smooth) to 1.00 (very rough). Default is 0.25. X-Plane only.
   shoulder varchar(15),                 -- Optional column for X-Plane - shoulder surface or null if none
   length integer not null,              -- Feet
   width integer not null,               -- Feet
@@ -509,9 +512,13 @@ create table approach_leg
   fix_ident varchar(5),               -- "
   fix_region varchar(2),              -- "
   fix_airport_ident varchar(4),       -- "
+  fix_lonx double,                    -- Optional coordinates to better find the correct navaid
+  fix_laty double,                    -- "
   recommended_fix_type varchar(25),   -- "
   recommended_fix_ident varchar(5),   -- "
   recommended_fix_region varchar(2),  -- "
+  recommended_fix_lonx double,        -- "
+  recommended_fix_laty double,        -- "
   is_flyover integer not null,        -- 1 if this is a flyover fix
   is_true_course integer not null,    -- 1 if course is degrees true
   course double,                      -- leg course in degrees true of magnetic depending on is_true_course
@@ -546,9 +553,13 @@ create table transition_leg
   fix_ident varchar(5),
   fix_region varchar(2),
   fix_airport_ident varchar(4),
+  fix_lonx double,                    -- Optional coordinates to better find the correct navaid
+  fix_laty double,                    -- "
   recommended_fix_type varchar(25),
   recommended_fix_ident varchar(5),
   recommended_fix_region varchar(2),
+  recommended_fix_lonx double,        -- "
+  recommended_fix_laty double,        -- "
   is_flyover integer not null,
   is_true_course integer not null,
   course double,
