@@ -37,7 +37,7 @@ class FgConnectHandler :
 {
     Q_OBJECT
 public:
-  FgConnectHandler(QObject *parent);
+  FgConnectHandler(QObject *parent, QUdpSocket* udpSocket);
   virtual ~FgConnectHandler() override;
 
   virtual bool connect() override;

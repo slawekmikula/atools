@@ -29,10 +29,12 @@ namespace atools {
 namespace fs {
 namespace sc {
 
-FgConnectHandler::FgConnectHandler(QObject *parent)
+FgConnectHandler::FgConnectHandler(QObject *parent, QUdpSocket* udpSocket)
     : QObject(parent)
 {
   qDebug() << Q_FUNC_INFO;
+
+  this->udpSocket = udpSocket;
 }
 
 FgConnectHandler::~FgConnectHandler()
@@ -43,28 +45,28 @@ FgConnectHandler::~FgConnectHandler()
 
 bool FgConnectHandler::connect()
 {
-  if(udpSocket != nullptr) {
-      if (udpSocket->state() == udpSocket->BoundState) {
-        qDebug() << Q_FUNC_INFO << "Already open";
-        state = STATEOK;
-        return true;
-      }
-  }
+    if(udpSocket != nullptr) {
+        if (udpSocket->state() == udpSocket->BoundState) {
+          qDebug() << Q_FUNC_INFO << "Already open";
+          state = STATEOK;
+          return true;
+        }
+    }
 
-  udpSocket = new QUdpSocket(this->parent());
-  if (!udpSocket->bind(7755, QUdpSocket::ShareAddress)) {
-    qWarning() << Q_FUNC_INFO << "Cannot open UDP port";
-    state = OPEN_ERROR;
-    udpSocket = nullptr;
-    return false;
-  }
-  else
-  {    
+//  if (!udpSocket->bind(16055)) {
+//    qWarning() << Q_FUNC_INFO << "Cannot open UDP port";
+//    state = OPEN_ERROR;
+//    udpSocket = nullptr;
+//    return false;
+//  }
+//  else
+//  {
     QObject::connect(udpSocket, SIGNAL(readyRead()), this, SLOT(readPendingDatagrams()));
     qInfo() << Q_FUNC_INFO << "Attached to the UDP port";
     state = STATEOK;
+//    return true;
+//  }
     return true;
-  }
 }
 
 void FgConnectHandler::disconnect()
