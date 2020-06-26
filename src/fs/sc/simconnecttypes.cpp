@@ -15,32 +15,23 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#ifndef ATOOLS_GUI_TOOLS_H
-#define ATOOLS_GUI_TOOLS_H
+#include "fs/sc/simconnecttypes.h"
 
-class QString;
-class QWidget;
-class QUrl;
-class QFont;
-class QLabel;
+#include "fs/sc/simconnectdata.h"
+#include "fs/sc/simconnectreply.h"
 
 namespace atools {
-namespace gui {
+namespace fs {
+namespace sc {
 
-/* Show path in any OS dependent file manager. Selects the file in Windows Explorer.
- *  Shows a warning dialog on error.*/
-bool showInFileManager(const QString& filepath, QWidget *parent);
+void registerMetaTypes()
+{
+  qRegisterMetaType<atools::fs::sc::SimConnectData>();
+  qRegisterMetaType<atools::fs::sc::SimConnectReply>();
+  qRegisterMetaType<atools::fs::sc::SimConnectStatus>();
+  qRegisterMetaType<atools::fs::sc::WeatherRequest>();
+}
 
-/* Open HTTP, HTTPS, FTP or FILE link in browser or file manager */
-void anchorClicked(QWidget *parent, const QUrl& url);
-
-/* Return a user readable text for the given font */
-QString fontDescription(const QFont& font);
-
-/* Sets label text and label font */
-void fontDescription(const QFont& font, QLabel *label);
-
-} // namespace gui
+} // namespace sc
+} // namespace fs
 } // namespace atools
-
-#endif // ATOOLS_GUI_TOOLS_H
