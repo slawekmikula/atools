@@ -38,6 +38,7 @@ GribDownloader::GribDownloader(QObject *parent, bool logVerbose = false)
   downloader = new HttpDownloader(parent, verbose);
   connect(downloader, &HttpDownloader::downloadFinished, this, &GribDownloader::downloadFinished);
   connect(downloader, &HttpDownloader::downloadFailed, this, &GribDownloader::downloadFailed);
+  connect(downloader, &HttpDownloader::downloadSslErrors, this, &GribDownloader::gribDownloadSslErrors);
 }
 
 GribDownloader::~GribDownloader()
@@ -106,10 +107,13 @@ void GribDownloader::startDownloadInternal()
   // lev_150_mb=on&lev_200_mb=on&lev_250_mb=on&lev_300_mb=on&lev_450_mb=on&lev_700_mb=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.20190614/00
   QString base = baseUrl.isEmpty() ? "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl" : baseUrl;
 
-  QString url = base + "?file=gfs.t" + datetime.toString("hh") + "z.pgrb2.1p00.anl&" +
-                levelStr + parameterStr + "dir=%2Fgfs." +
-                datetime.toString("yyyyMMdd") + "%2F" +
-                datetime.toString("hh");
+  // Need to use C locale due to Qt bug which uses system locale to create date
+  QLocale cLocale(QLocale::C);
+  QString hh(cLocale.toString(datetime, "hh"));
+  QString yyyyMMdd(cLocale.toString(datetime, "yyyyMMdd"));
+
+  QString url = base + "?file=gfs.t" + hh + "z.pgrb2.1p00.anl&" + levelStr + parameterStr + "dir=%2Fgfs." +
+                yyyyMMdd + "%2F" + hh;
 
   downloader->setUrl(url);
 
@@ -165,6 +169,11 @@ void GribDownloader::downloadFailed(const QString& error, int errorCode, QString
 bool atools::grib::GribDownloader::isDownloading() const
 {
   return downloader->isDownloading();
+}
+
+void GribDownloader::setIgnoreSslErrors(bool value)
+{
+  downloader->setIgnoreSslErrors(value);
 }
 
 } // namespace grib

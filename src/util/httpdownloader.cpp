@@ -66,6 +66,7 @@ void HttpDownloader::startDownload()
 
   if(!filename.isEmpty())
   {
+    // Load a file ================================================================
     QFile file(filename);
     if(file.open(QIODevice::ReadOnly))
     {
@@ -79,6 +80,7 @@ void HttpDownloader::startDownload()
   }
   else
   {
+    // Start download ================================================================
     QByteArray *cachedData = nullptr;
     if(dataCache != nullptr && (cachedData = dataCache->value(QUrl(downloadUrl).toString())) != nullptr)
     {
@@ -90,40 +92,76 @@ void HttpDownloader::startDownload()
     }
     else
     {
-      cancelDownload();
-
-      QNetworkRequest request(downloadUrl);
-
-      if(!userAgent.isEmpty())
-        request.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
-
-      if(!postParameters.isEmpty())
-        // Post raw data ============================
-        reply = networkManager.post(request, postParameters);
-      else if(!postParametersQuery.isEmpty())
+      // Either cancel requested, request in process or no periodic downloads done
+      if(restartRequest || !isDownloading() || updatePeriodSeconds == 0)
       {
-        // Post form data ============================
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+        cancelDownload();
 
-        QUrlQuery params;
-        for(const QString& key : postParametersQuery.keys())
-          params.addQueryItem(key, postParametersQuery.value(key));
+        QNetworkRequest request(downloadUrl);
 
-        reply = networkManager.post(request, params.query().toUtf8());
+        if(!userAgent.isEmpty())
+          request.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+
+        if(!postParameters.isEmpty())
+          // Post raw data ============================
+          reply = networkManager.post(request, postParameters);
+        else if(!postParametersQuery.isEmpty())
+        {
+          // Post form data ============================
+          request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+          QUrlQuery params;
+          for(const QString& key : postParametersQuery.keys())
+            params.addQueryItem(key, postParametersQuery.value(key));
+
+          reply = networkManager.post(request, params.query().toUtf8());
+        }
+        else
+          // Get request ============================
+          reply = networkManager.get(request);
+
+        if(reply != nullptr)
+        {
+          connect(reply, &QNetworkReply::finished, this, &HttpDownloader::httpFinished);
+          connect(reply, &QNetworkReply::readyRead, this, &HttpDownloader::readyRead);
+          connect(reply, &QNetworkReply::downloadProgress, this, &HttpDownloader::downloadProgressInternal);
+          connect(reply, &QNetworkReply::sslErrors, this, &HttpDownloader::sslErrors);
+        }
+        else
+          qWarning() << Q_FUNC_INFO << "Reply is null" << downloadUrl;
       }
       else
-        // Get request ============================
-        reply = networkManager.get(request);
-
-      if(reply != nullptr)
-      {
-        connect(reply, &QNetworkReply::finished, this, &HttpDownloader::httpFinished);
-        connect(reply, &QNetworkReply::readyRead, this, &HttpDownloader::readyRead);
-        connect(reply, &QNetworkReply::downloadProgress, this, &HttpDownloader::downloadProgressInternal);
-      }
-      else
-        qWarning() << Q_FUNC_INFO << "Reply is null" << downloadUrl;
+        // is already downloading and waiting for finished required (restartRequest = false)
+        startTimer();
     }
+  }
+}
+
+void HttpDownloader::sslErrors(const QList<QSslError>& errors)
+{
+  if(reply != nullptr)
+  {
+    if(!ignoreSslErrors)
+    {
+      if(!sslErrorLogged)
+      {
+        qWarning() << Q_FUNC_INFO << errors << reply->url();
+        sslErrorLogged = true;
+      }
+
+      // Errors not ignored - let user decide if to continue
+      QStringList errorList;
+      for(QSslError err : errors)
+        errorList.append(err.errorString());
+
+      emit downloadSslErrors(errorList, reply->url().toString());
+    }
+
+    // ignoreSslErrors set in call above or not
+
+    if(ignoreSslErrors)
+      // Continue despite of errors
+      reply->ignoreSslErrors();
   }
 }
 

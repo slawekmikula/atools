@@ -44,7 +44,7 @@ public:
 
   /* Download file and emit downloadFinished when done.
    * Will start update timer after download if period <> -1.
-   * Cancels all previous downloads. */
+   * Cancels all previous downloads if restartRequest = true. */
   void startDownload();
   void cancelDownload();
 
@@ -134,11 +134,37 @@ public:
     return reply != nullptr;
   }
 
+  /* Cancels current request if true. Waits for request to be finished if false */
+  void setRestartRequest(bool value)
+  {
+    restartRequest = value;
+  }
+
+  bool isRestartRequest() const
+  {
+    return restartRequest;
+  }
+
+  /* Set to true to ignore any certificate validation or other SSL errors.
+   * downloadSslErrors is emitted in case of SSL errors. */
+  void setIgnoreSslErrors(bool value)
+  {
+    ignoreSslErrors = value;
+  }
+
+  bool isIgnoreSslErrors() const
+  {
+    return ignoreSslErrors;
+  }
+
 signals:
   /* Emitted when file was downloaded and udpated */
   void downloadFinished(const QByteArray& data, QString downloadUrl);
   void downloadFailed(const QString& error, int errorCode, QString downloadUrl);
   void downloadProgress(qint64 bytesReceived, qint64 bytesTotal, QString downloadUrl);
+
+  /* Emitted on SSL errors. Call setIgnoreSslErrors to ignore future errors and continue.  */
+  void downloadSslErrors(const QStringList& errors, const QString& downloadUrl);
 
 private:
   /* Request completely finished */
@@ -151,6 +177,10 @@ private:
   void readyRead();
 
   void downloadProgressInternal(qint64 bytesReceived, qint64 bytesTotal);
+
+  void sslErrors(const QList<QSslError>& errors);
+
+  bool restartRequest = true, ignoreSslErrors = false, sslErrorLogged = false;
 
   QString curUrl();
 

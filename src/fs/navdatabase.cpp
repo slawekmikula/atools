@@ -370,8 +370,6 @@ void NavDatabase::createInternal(const QString& sceneryConfigCodec)
   // ===========================================================================
   // Loading is done here - now continue with the post process steps
 
-  SqlScript script(db, true /*options->isVerbose()*/);
-
   if(options->isResolveAirways() && sim != atools::fs::FsPaths::NAVIGRAPH)
   {
     if((aborted = progress.reportOther(tr("Creating airways"))))
@@ -594,6 +592,10 @@ bool NavDatabase::loadDfd(ProgressHandler *progress, ng::DfdCompiler *dfdCompile
   if(options->isIncludedNavDbObject(atools::fs::type::AIRWAY))
     dfdCompiler->writeAirways();
 
+  // Create waypoints for fix resolution in procedures - has to be done after airway processing
+  if((aborted = runScript(progress, "fs/db/dfd/populate_navaids_proc.sql", tr("Creating waypoints for procedures"))))
+    return true;
+
   dfdCompiler->updateMagvar();
   dfdCompiler->updateTacanChannel();
   dfdCompiler->updateIlsGeometry();
@@ -611,7 +613,7 @@ bool NavDatabase::loadDfd(ProgressHandler *progress, ng::DfdCompiler *dfdCompile
   db->commit();
 
   // Update airport_id from ndb, vor and waypoint
-  if((aborted = runScript(progress, "fs/db/dfd/update_navaids.sql", tr("Creating indexes"))))
+  if((aborted = runScript(progress, "fs/db/dfd/update_navaids.sql", tr("Updating Navids in Waypoint"))))
     return true;
 
   db->commit();
@@ -813,22 +815,51 @@ void NavDatabase::basicValidateTable(const QString& table, int minCount)
   qInfo() << "Table" << table << "is OK. Has" << count << "rows. Minimum required is" << minCount;
 }
 
+void NavDatabase::runPreparationPost245(atools::sql::SqlDatabase& db)
+{
+  qDebug() << Q_FUNC_INFO;
+
+  SqlUtil util(db);
+
+  // Remove the unneeded routing tables since data is loaded dynamically in newer versions
+  if(util.hasTable("route_edge_airway"))
+    db.exec("delete from route_edge_airway");
+  if(util.hasTable("route_edge_radio"))
+    db.exec("delete from route_edge_radio");
+  if(util.hasTable("route_node_airway"))
+    db.exec("delete from route_node_airway");
+  if(util.hasTable("route_node_radio"))
+    db.exec("delete from route_node_radio");
+  db.commit();
+
+  // Remove artificial waypoints since procedures now use coordinates and all navaids to resolve fixes
+  if(util.hasTableAndColumn("waypoint", "artificial"))
+    db.exec("delete from waypoint where artificial = 2");
+  db.commit();
+
+  // Delete legacy center boundaries in favor of new types FIR and UIR
+  db.exec("delete from boundary where type = 'C' and name in ('% (FIR)', '% (UIR)', '% (FIR/UIR)')");
+  db.commit();
+}
+
 void NavDatabase::runPreparationScript(atools::sql::SqlDatabase& db)
 {
-  if(SqlUtil(db).hasTable("script"))
+  qDebug() << Q_FUNC_INFO;
+  if(SqlUtil(db).hasTableAndRows("script"))
   {
     SqlQuery scriptQuery("select statement from script ", db);
     scriptQuery.exec();
     while(scriptQuery.next())
     {
       qDebug() << "prepare script" << scriptQuery.valueStr("statement");
-      db.exec(scriptQuery.valueStr("statement"));
+      SqlQuery query = db.exec(scriptQuery.valueStr("statement"));
+      qDebug().nospace() << "[" << query.numRowsAffected() << "]";
     }
-  }
-  db.commit();
+    db.commit();
 
-  db.exec("delete from script");
-  db.commit();
+    db.exec("delete from script");
+    db.commit();
+  }
 }
 
 void NavDatabase::createPreparationScript()
@@ -978,7 +1009,7 @@ void NavDatabase::readSceneryConfig(atools::fs::scenery::SceneryCfg& cfg)
     {
 #if defined(Q_OS_WIN32)
       // Use the environment variable because QStandardPaths::ConfigLocation returns an unusable path on Windows
-      QString addonsCfgFileLocal = QString(qgetenv("LOCALAPPDATA"));
+      QString addonsCfgFileLocal = QProcessEnvironment::systemEnvironment().value("LOCALAPPDATA");
 #else
       // Use $HOME/.config for testing
       QString addonsCfgFileLocal = QStandardPaths::standardLocations(QStandardPaths::ConfigLocation).first();
@@ -998,7 +1029,7 @@ void NavDatabase::readSceneryConfig(atools::fs::scenery::SceneryCfg& cfg)
 
 #if defined(Q_OS_WIN32)
       // Use the environment variable because QStandardPaths::ConfigLocation returns an unusable path on Windows
-      QString addonsCfgFile = QString(qgetenv("APPDATA"));
+      QString addonsCfgFile = QProcessEnvironment::systemEnvironment().value("APPDATA");
 #else
       // Use $HOME/.config for testing
       QString addonsCfgFile = QStandardPaths::standardLocations(QStandardPaths::ConfigLocation).first();
@@ -1015,7 +1046,7 @@ void NavDatabase::readSceneryConfig(atools::fs::scenery::SceneryCfg& cfg)
     {
 #if defined(Q_OS_WIN32)
       // Use the environment variable because QStandardPaths::ConfigLocation returns an unusable path on Windows
-      QString addonsAllUsersCfgFile = QString(qgetenv("PROGRAMDATA"));
+      QString addonsAllUsersCfgFile = QProcessEnvironment::systemEnvironment().value("PROGRAMDATA");
 #else
       // Use /tmp for testing
       QString addonsAllUsersCfgFile = QStandardPaths::standardLocations(QStandardPaths::ConfigLocation).first();
