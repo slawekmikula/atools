@@ -1155,7 +1155,7 @@ void FlightplanIO::loadFsx(atools::fs::pln::Flightplan& plan, const QString& fil
     atools::util::XmlStream xmlStream(&xmlFile);
     QXmlStreamReader& reader = xmlStream.getReader();
 
-    // Skip all the useless stuff until we hit the document
+    // Skip all the useless entries until we hit the document
     xmlStream.readUntilElement("SimBase.Document");
     xmlStream.readUntilElement("Descr");
     while(!reader.atEnd())
@@ -1514,6 +1514,7 @@ void FlightplanIO::saveLnmInternal(QXmlStreamWriter& writer, const Flightplan& p
   writeElementIf(writer, "FileVersion", QString("%1.%2").arg(LNMPLN_VERSION_MAJOR).arg(LNMPLN_VERSION_MINOR));
   writeElementIf(writer, "ProgramName", QCoreApplication::applicationName());
   writeElementIf(writer, "ProgramVersion", QCoreApplication::applicationVersion());
+  writeElementIf(writer, "Documentation", "https://www.littlenavmap.org/lnmpln.html");
   writer.writeEndElement(); // Header
 
   // Nav and sim metadata =======================================================
@@ -1728,7 +1729,7 @@ void FlightplanIO::savePlnInternal(const Flightplan& plan, const QString& filena
   for(const FlightplanEntry& entry : plan.entries)
   {
     if(entry.isNoSave())
-      // Do not save stuff like procedure points
+      // Do not save entries like procedure points
       continue;
 
     writer.writeStartElement("ATCWaypoint");
@@ -1976,7 +1977,108 @@ void FlightplanIO::saveFlightGear(const Flightplan& plan, const QString& filenam
     throw Exception(errorMsg.arg(filename).arg(xmlFile.errorString()));
 }
 
+void FlightplanIO::saveCrjFlp(const atools::fs::pln::Flightplan& plan, const QString& filename)
+{
+  saveFlpInternal(plan, filename, true /* CRJ */);
+}
+
 void FlightplanIO::saveFlp(const atools::fs::pln::Flightplan& plan, const QString& filename)
+{
+  saveFlpInternal(plan, filename, false /* CRJ */);
+}
+
+// =========================================================================
+// [CoRte]
+// ArptDep=EDDH
+// RwyDep=EDDH33
+// ArptArr=LIRF
+// RwyArr=LIRF34R
+// ArptAltn=LIRN
+// SID=IDEK5B
+// SIDEnrTrans=IDEKO
+// STAR=TAQ1C
+// EnrSTARTrans=TAQ
+// STARApprTrans=
+// APPR_Trans=VECTORS
+// RwyArrFINAL=I34R
+// CoRoute=
+// FltNo=N275SB
+// DctWpt1=ABMAL
+// DctWpt1Coordinates=53.442069,10.911981
+// DctWpt2=IRKIS
+// DctWpt2Coordinates=53.248889,10.888611
+// ...
+// DctWpt38=GIKIN
+// DctWpt38Coordinates=42.618333,12.048611
+// DctWpt39=TAQ
+// DctWpt39Coordinates=42.215056,11.732611
+//
+// [PerfData]
+// CrzAlt=33000
+// CrzAltAltn=17000
+// PaxCnt=128
+// PaxWeight=175
+// CargoWeight=7040
+// FuelWeight=21677
+// WindDirClb=274
+// WindSpdClb=37
+// WindDirCrz=277
+// WindSpdCrz=41
+// WindDirDes=290
+// WindSpdDes=16
+// ISADev=5
+// ResFuel=2710
+// TaxiFuel=840
+//
+// [VNAVData]
+// TransAlt=5000
+// TransLvl=18000
+
+// =========================================================================
+// [CoRte]
+// ArptDep=EDDL
+// RwyDep=EDDL23L
+// ArptArr=EDDM
+// RwyArr=EDDM08L
+// ArptAltn=
+// SID=DODE8T
+// SIDEnrTrans=(optional)
+// STAR=ANOR3A
+// EnrSTARTrans=(optional)
+// STARApprTrans=(optional)
+// APPR_Trans=VECTORS
+// RwyArrFINAL=I08L
+// CoRoute=(optional)
+// FltNo=
+// Airway1=Y853
+// Airway1FROM=DODEN
+// Airway1TO=BOMBI
+// Airway2=T104
+// Airway2FROM=BOMBI
+// Airway2TO=LEVBU
+//
+// All values except the wind data default to -1 if not set. In this case, the FMS defaults will be loaded.
+// [PerfData]
+// CrzAlt=27000
+// CrzAltAltn=-1
+// PaxCnt=56
+// PaxWeight=185
+// CargoWeight=1089
+// FuelWeight=7408
+// WindDirClb=0
+// WindSpdClb=0
+// WindDirCrz=0
+// WindSpdCrz=0
+// WindDirDes=0
+// WindSpdDes=0
+// ISADev=0
+// ResFuel=1650
+// TaxiFuel=0
+//
+// [VNAVData]
+// TransAlt=18000
+// TransLvl=18000
+void FlightplanIO::saveFlpInternal(const atools::fs::pln::Flightplan& plan, const QString& filename, bool crj)
 {
   QFile flpFile(filename);
 
@@ -1985,6 +2087,7 @@ void FlightplanIO::saveFlp(const atools::fs::pln::Flightplan& plan, const QStrin
     QTextStream stream(&flpFile);
     stream.setCodec("UTF-8");
 
+    // CoRte ==============================================
     stream << "[CoRte]" << endl;
     stream << "ArptDep=" << plan.departureIdent << endl;
     stream << "ArptArr=" << plan.destinationIdent << endl;
@@ -2039,13 +2142,19 @@ void FlightplanIO::saveFlp(const atools::fs::pln::Flightplan& plan, const QStrin
     // stream << "STAR=" << endl;
     // stream << "APPR_Trans=" << endl;
 
+    if(crj)
+    {
+      stream << "CoRoute=" << endl;
+      stream << "FltNo=" << endl;
+    }
+
     QString lastAirwayTo;
     int index = 1;
     for(int i = 1; i < plan.entries.size() - 1; i++)
     {
       const FlightplanEntry& entry = plan.entries.at(i);
       if(entry.isNoSave())
-        // Do not save stuff like procedure points
+        // Do not save entries like procedure points
         continue;
 
       const FlightplanEntry& next = plan.entries.at(i + 1);
@@ -2068,6 +2177,32 @@ void FlightplanIO::saveFlp(const atools::fs::pln::Flightplan& plan, const QStrin
         lastAirwayTo.clear();
         index++;
       }
+    }
+
+    if(crj)
+    {
+      // PerfData ==============================================
+      stream << "[PerfData]" << endl;
+      stream << "CrzAlt=" << plan.getCruisingAltitude() << endl;
+      stream << "CrzAltAltn=-1" << endl;
+      stream << "PaxCnt=-1" << endl;
+      stream << "PaxWeight=-1" << endl;
+      stream << "CargoWeight=-1" << endl;
+      stream << "FuelWeight=-1" << endl;
+      stream << "WindDirClb=0" << endl;
+      stream << "WindSpdClb=0" << endl;
+      stream << "WindDirCrz=0" << endl;
+      stream << "WindSpdCrz=0" << endl;
+      stream << "WindDirDes=0" << endl;
+      stream << "WindSpdDes=0" << endl;
+      stream << "ISADev=0" << endl;
+      stream << "ResFuel=-1" << endl;
+      stream << "TaxiFuel=-1" << endl;
+
+      // VNAVData ==============================================
+      stream << "[VNAVData]" << endl;
+      stream << "TransAlt=18000" << endl;
+      stream << "TransLvl=18000" << endl;
     }
 
     flpFile.close();
@@ -2273,6 +2408,7 @@ void FlightplanIO::saveEfbr(const Flightplan& plan, const QString& filename, con
     stream << "ArrivalProcedureInfo=" << destinationRw << "||" << endl;
     stream << "ApproachProcedureInfo=||" << endl;
 
+    int num = 0;
     for(int i = 0; i < plan.entries.size(); i++)
     {
       const FlightplanEntry& entry = plan.entries.at(i);
@@ -2282,7 +2418,7 @@ void FlightplanIO::saveEfbr(const Flightplan& plan, const QString& filename, con
 
       // Wpt=Enroute|38|GIKIN||Fix|0|LI|42.618333|12.048611|0|Z806
       // Wpt=Enroute|39|TAQ|TARQUINIA|VORDME|111.80|LI|42.215056|11.732611|0|L865
-      stream << "Wpt=Enroute|" << (i - 1) << "|" << identOrDegMinFormat(entry) << "|" << entry.getName().toUpper() <<
+      stream << "Wpt=Enroute|" << num << "|" << identOrDegMinFormat(entry) << "|" << entry.getName().toUpper() <<
         "|";
       entry::WaypointType waypointType = entry.getWaypointType();
       QString frequency("0");
@@ -2311,6 +2447,8 @@ void FlightplanIO::saveEfbr(const Flightplan& plan, const QString& filename, con
              << QString("%1").arg(entry.getPosition().getLatY(), 0, 'f', 6, QChar('0')) << "|"
              << QString("%1").arg(entry.getPosition().getLonX(), 0, 'f', 6,
                            QChar('0')) << "|0|" << (entry.getAirway().isEmpty() ? "DCT" : entry.getAirway()) << endl;
+
+      num++;
     }
 
     stream << "[END]";
@@ -2506,7 +2644,7 @@ void FlightplanIO::saveTfdi(const Flightplan& plan, const QString& filename, con
     {
       const FlightplanEntry& entry = plan.entries.at(i);
       if(entry.isNoSave())
-        // Do not save stuff like procedure points
+        // Do not save entries like procedure points
         continue;
 
       writer.writeStartElement("Leg");
@@ -3026,7 +3164,7 @@ void FlightplanIO::saveRte(const atools::fs::pln::Flightplan& plan, const QStrin
       const FlightplanEntry& entry = plan.entries.at(i);
 
       if(entry.isNoSave())
-        // Do not save stuff like procedure points
+        // Do not save entries like procedure points
         continue;
 
       if(entry.getWaypointType() == ple::USER)
@@ -3152,6 +3290,16 @@ void FlightplanIO::saveFpr(const atools::fs::pln::Flightplan& plan, const QStrin
   }
 }
 
+// ERROR ===========================
+// DIRECT,3,FJR,0,  43.578362 003.974722,0,0,091.00000,0,0,1,-1,0.000,0,-1000,-1000,-1,-1,-1,0,0,000.00000,0,0,,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1000,0,
+// ,2,NIZ,0,  43.770638 007.254389,0,0,083.00000,0,0,1,-1,0.000,0,-1000,-1000,-1,-1,-1,0,0,000.00000,0,0,,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1000,0,
+// ,2,AMGEL,0,  43.832054 007.374639,0,0,052.00000,0,0,1,-1,0.000,0,-1000,-1000,-1,-1,-1,0,0,000.00000,0,0,,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1000,0,
+
+// OK ===========================
+// DIRECT,3,MONTPELLIER MEDITERRANEE,FJR,+43.578360+003.974722,0,0,090.819150,0,0,-1,-1,0,-1,-1,-1,-1,0,0,0,0,0,0,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1000,0,
+// DIRECT,3,NICE COTE DAZUR,NIZ,+43.770640+007.254389,0,0,084.234570,0,0,-1,-1,0,-1,-1,-1,-1,0,0,0,0,0,0,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1000,0,
+// DIRECT,3,AMGEL,AMGEL,+43.832050+007.374639,0,0,054.674560,0,0,-1,-1,0,-1,-1,-1,-1,0,0,0,0,0,0,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1,-1,17,0,-1000,-1,-1,
+
 void FlightplanIO::saveFltplan(const Flightplan& plan, const QString& filename)
 {
   // YSSY,
@@ -3210,7 +3358,7 @@ void FlightplanIO::saveFltplan(const Flightplan& plan, const QString& filename)
     // ,
     // ,
     // -1,
-    stream << "-1," << endl << "," << endl << "," << endl << "," << endl << "," << endl << "-1," << endl;
+    stream << "-1," << endl << "," << endl << "," << endl << "," << endl << "," << endl << "0," << endl;
 
     for(int i = 0; i < plan.entries.size(); i++)
     {
@@ -3225,12 +3373,7 @@ void FlightplanIO::saveFltplan(const Flightplan& plan, const QString& filename)
       // DIRECT,3,WOL,0,-34.558056 150.791111,0,0,195.40055,0,0,1,321,0.000,0,18763,-1000,13468,457,-1,0,0,000.00000,0,0,,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1000,0,
       // H65,2,RAZZI,0,-35.054166 149.960277,0,0,220.43300,0,0,0,0,0.797,0,28908,-1000,12935,859,-1,0,0,000.00000,0,0,,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1,-1,-1000,0,-1000,-1000,0,
       if(entry.getAirway().isEmpty())
-      {
-        if(i == 1)
-          stream << "DIRECT,3,";
-        else
-          stream << ",2,";
-      }
+        stream << "DIRECT,3,";
       else
         stream << entry.getAirway() << ",2,";
 
@@ -3252,7 +3395,8 @@ void FlightplanIO::saveFltplan(const Flightplan& plan, const QString& filename)
       else
         lonX.prepend(" ");
 
-      stream << entry.getIdent() << ",0, ";
+      stream << identOrDegMinFormat(entry) << ",0, ";
+
       stream << latY << lonX;
       stream << ",0,0," << QString("%1").arg(heading, 3, 10, QChar('0')) << ".00000";
 
@@ -3309,7 +3453,7 @@ void FlightplanIO::saveBbsPln(const Flightplan& plan, const QString& filename)
     stream << "title=" << plan.getDepartureIdent() << " to " << plan.getDestinationIdent() << endl;
     stream << "description=" << plan.getDepartureIdent() << ", " << plan.getDestinationIdent() << endl;
     stream << "type=" << flightplanTypeToString(plan.getFlightplanType()) << endl;
-    stream << "routetype=" << routeTypeToStringFs9(DIRECT) << endl;
+    stream << "routetype=3" << endl;
 
     // cruising_altitude=29000
     // departure_id=EDDH, N53* 37.82', E009* 59.29', +000053.00
@@ -3335,7 +3479,8 @@ void FlightplanIO::saveBbsPln(const Flightplan& plan, const QString& filename)
       if(entry.isNoSave())
         // Do not save procedure points
         continue;
-      stream << "waypoint." << idx << "=" << entry.getIdent() << ", ";
+
+      stream << "waypoint." << idx << "=" << identOrDegMinFormat(entry) << ", ";
       stream << entry.getWaypointTypeAsStringShort() << ", ";
       stream << coordStringFs9(entry.getPosition()) << ", ";
       stream << entry.getAirway();
@@ -3820,7 +3965,7 @@ int FlightplanIO::numEntriesSave(const atools::fs::pln::Flightplan& plan)
   for(const FlightplanEntry& entry : plan.entries)
   {
     if(!entry.isNoSave())
-      // Do not save stuff like procedure points
+      // Do not save entries like procedure points
       num++;
   }
   return num;
