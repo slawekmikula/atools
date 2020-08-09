@@ -109,6 +109,9 @@ QString elideTextLinesShort(QString str, int maxLines, int maxLength = 0);
 /* Concatenates all paths parts with the QDir::separator() and fetches names correcting the case */
 QString buildPathNoCase(const QStringList& paths);
 
+/* As above but splits at slash and backslash */
+QString buildPathNoCase(QString path);
+
 /* Simply concatenates all paths parts with the QDir::separator() */
 QString buildPath(const QStringList& paths);
 
@@ -311,6 +314,13 @@ int roundToPrecision(TYPE value, int precision = 0)
     int factor = static_cast<int>(std::pow(10., precision));
     return static_cast<int>(round(value / factor)) * factor;
   }
+}
+
+/* Round value to nearest multiple of round */
+template<typename TYPE>
+TYPE roundToNearest(TYPE value, TYPE round)
+{
+  return round > 0. ? std::round(value / round) * round : value;
 }
 
 /* To string with changing precision */
