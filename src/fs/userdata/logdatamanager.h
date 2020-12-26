@@ -38,6 +38,8 @@ namespace userdata {
 struct LogEntryGeometry
 {
   atools::geo::LineString route, track;
+
+  /* Flight plan waypoint names. String list has the same size as route */
   QStringList names;
   atools::geo::Rect routeRect, trackRect;
 };
@@ -68,8 +70,8 @@ public:
   /* Update schema to latest. Checks for new columns and tables. */
   void updateSchema();
 
-  /* Get flight plan and track points from GPX attachment or database BLOB. Request is cached. */
-  /* Get flight plan waypoint names. String list has the same size as getRouteGeometry */
+  /* Get flight plan and track and route points from GPX attachment or database BLOB. Request is cached.
+   *  Also includes route waypoint names. */
   const atools::fs::userdata::LogEntryGeometry *getGeometry(int id);
 
   /* Clear cache used by getRouteGeometry and getTrackGeometry */
@@ -87,7 +89,8 @@ public:
   void getFlightStatsDistance(float& distTotal, float& distMax, float& distAverage);
 
   /* Trip Time in hours */
-  void getFlightStatsTripTime(float& timeMaximum, float& timeAverage, float& timeMaximumSim, float& timeAverageSim);
+  void getFlightStatsTripTime(float& timeMaximum, float& timeAverage, float& timeTotal, float& timeMaximumSim,
+                              float& timeAverageSim, float& timeTotalSim);
 
   /* Various numbers */
   void getFlightStatsAirports(int& numDepartAirports, int& numDestAirports);
@@ -100,9 +103,13 @@ public:
   static void fixEmptyFields(atools::sql::SqlRecord& rec);
   static void fixEmptyFields(atools::sql::SqlQuery& query);
 
+  static const int MAX_CACHE_ENTRIES = 100;
+
 private:
   static void fixEmptyStrField(atools::sql::SqlRecord& rec, const QString& name);
   static void fixEmptyStrField(atools::sql::SqlQuery& query, const QString& name);
+  static void fixEmptyBlobField(atools::sql::SqlRecord& rec, const QString& name);
+  static void fixEmptyBlobField(atools::sql::SqlQuery& query, const QString& name);
 
   /* Convert Gzipped BLOB to text (file) */
   static QString blobConversionFunction(const QVariant& value);

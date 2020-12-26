@@ -54,6 +54,21 @@
     </message>
 </context>
 <context>
+    <name>ContentXml</name>
+    <message>
+        <source>Base Airports</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base Navigation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot open file &quot;%1&quot;. Reason: %2</source>
+        <translation type="unfinished">No puedo abrir archivir &quot;%1&quot;. Motivo: %2</translation>
+    </message>
+</context>
+<context>
     <name>DataWriter</name>
     <message>
         <source>Cannot read file. Falling back to world magnetic model.</source>
@@ -119,6 +134,14 @@ Atrapada excepción
     <name>Flightplan</name>
     <message>
         <source>Empty Flightplan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IFR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>VFR</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -224,19 +247,27 @@ Atrapada excepción
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Cannot open flight plan file &quot;%1&quot;. No supported flight plan format detected. Only LNMPLN, PLN (FSX XML, FS9 INI and FSC), X-Plane FMS, FLP and FlightGear FGFP are supported.</source>
+        <source>Cannot open flight plan file &quot;%1&quot;. No supported flight plan format detected. Supported formats are LNMPLN, PLN (FSX XML, MSFS XML, FS9 INI and FSC), X-Plane FMS, FLP and FlightGear FGFP.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Invalid position in LNMPLN.</source>
+        <source>Invalid position in LNMPLN file &quot;%1&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Invalid position in LNMPLN. Ordinates out of range: %1</source>
+        <source>Invalid position in LNMPLN file &quot;%1&quot;. Ordinates out of range: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Invalid position in GPX.</source>
+        <source>Invalid position in LNMPLN file &quot;%1&quot;. Ordinate(s) are not numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid position in GPX file &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid LNMPLN flight plan file &quot;%1&quot;. No waypoints found.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -801,7 +832,7 @@ Atrapada excepción
     </message>
     <message>
         <source>Does not contain a &quot;Scenery&quot; directory</source>
-        <translation>No contiene un directorio &quot;Escenario&quot;</translation>
+        <translation type="vanished">No contiene un directorio &quot;Escenario&quot;</translation>
     </message>
     <message>
         <source>Creating Database Schema</source>
@@ -833,11 +864,11 @@ Atrapada excepción
     </message>
     <message>
         <source>Directory is not readable</source>
-        <translation>Imposible leer el directorio</translation>
+        <translation type="vanished">Imposible leer el directorio</translation>
     </message>
     <message>
         <source>File is not a regular file</source>
-        <translation>El archivo no es un archivo común</translation>
+        <translation type="vanished">El archivo no es un archivo común</translation>
     </message>
     <message>
         <source>Creating indexes</source>
@@ -865,7 +896,7 @@ Atrapada excepción
     </message>
     <message>
         <source>Is not a directory</source>
-        <translation>No es un directorio</translation>
+        <translation type="vanished">No es un directorio</translation>
     </message>
     <message>
         <source>Updating waypoints</source>
@@ -873,7 +904,7 @@ Atrapada excepción
     </message>
     <message>
         <source>File is not readable</source>
-        <translation>El archivo no es legible</translation>
+        <translation type="vanished">El archivo no es legible</translation>
     </message>
     <message>
         <source>Removing Airports</source>
@@ -885,7 +916,7 @@ Atrapada excepción
     </message>
     <message>
         <source>Directory does not exist</source>
-        <translation>El directorio no existe</translation>
+        <translation type="vanished">El directorio no existe</translation>
     </message>
     <message>
         <source>Analyze Database</source>
@@ -909,11 +940,11 @@ Atrapada excepción
     </message>
     <message>
         <source>&quot;%1&quot; not found</source>
-        <translation>&quot;%1&quot; no encontrado</translation>
+        <translation type="vanished">&quot;%1&quot; no encontrado</translation>
     </message>
     <message>
         <source>File does not exist</source>
-        <translation>El archivo no existe</translation>
+        <translation type="vanished">El archivo no existe</translation>
     </message>
     <message>
         <source>Updating ILS Count</source>
@@ -949,6 +980,38 @@ Atrapada excepción
     </message>
     <message>
         <source>Updating Navids in Waypoint</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading translations</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base Airports</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base Navigation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Community</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; does not contain any scenery areas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown exception while reading file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cleaning up waypoints</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counting files for %1 ...</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1319,10 +1382,6 @@ Atrapada excepción
         <translation type="unfinished">El archivo no existe</translation>
     </message>
     <message>
-        <source>UNKNOWN</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>NAT</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1439,6 +1498,47 @@ Atrapada excepción
     </message>
     <message>
         <source>, </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Directory &quot;%1&quot; does not exist.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File &quot;%1&quot; is not a directory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Directory &quot;%1&quot; is not readable.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File &quot;%1&quot; does not exist.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File &quot;%1&quot; is a directory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File &quot;%1&quot; is not readable.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File &quot;%1&quot; is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Directory name is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filepath is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>…</source>
+        <comment>Linefeed and dots used to shorten texts</comment>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1603,6 +1703,26 @@ Asegúrese que pueden encontrarse las rutas de earth_fix.dat y earth_nav.dat.</t
 Make sure that earth_fix.dat, earth_awy.dat and earth_nav.dat can be found in one of these paths.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Counting files for Resources ...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counting files for Custom Scenery/Global Airports ...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counting files for Airspaces ...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counting files for Custom Scenery ...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counting files for Custom Data ...</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>XpSceneryPacks</name>
@@ -1652,15 +1772,15 @@ Make sure that earth_fix.dat, earth_awy.dat and earth_nav.dat can be found in on
     </message>
     <message>
         <source>File is not a regular file</source>
-        <translation type="unfinished">El archivo no es un archivo común</translation>
+        <translation type="obsolete">El archivo no es un archivo común</translation>
     </message>
     <message>
         <source>File is not readable</source>
-        <translation type="unfinished">El archivo no es legible</translation>
+        <translation type="obsolete">El archivo no es legible</translation>
     </message>
     <message>
         <source>File does not exist</source>
-        <translation type="unfinished">El archivo no existe</translation>
+        <translation type="obsolete">El archivo no existe</translation>
     </message>
 </context>
 <context>
@@ -1950,10 +2070,14 @@ Night time: %5</source>
     </message>
     <message>
         <source>&lt;b&gt;If the problem persists or occurs during startup delete all settings and database files of %4 and try again.&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;If you wish to report this error attach the log and configuration files to your report, add all other available information and send it to one of the contact addresses below.&lt;/b&gt;&lt;br/&gt;</source>
-        <translation>&lt;b&gt;Si el problema persiste u ocurre durante el inicio, borre todas las configuraciones de los archivos de bases de datos %4 y reintente.&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Si desea reportar este error, adjunte los archivos de log y configuración a su reporte y agregue cualquier otra información valiosa, envíela a la dirección de contacto aquí debajo.&lt;/b&gt;&lt;br/&gt;</translation>
+        <translation type="vanished">&lt;b&gt;Si el problema persiste u ocurre durante el inicio, borre todas las configuraciones de los archivos de bases de datos %4 y reintente.&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Si desea reportar este error, adjunte los archivos de log y configuración a su reporte y agregue cualquier otra información valiosa, envíela a la dirección de contacto aquí debajo.&lt;/b&gt;&lt;br/&gt;</translation>
     </message>
     <message>
         <source>&lt;b&gt;Caught exception in file &quot;%1&quot; line %2.&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;i&gt;%3&lt;/i&gt;&lt;br/&gt;&lt;br/&gt;%4&lt;hr/&gt;%5&lt;hr/&gt;%6&lt;br/&gt;&lt;h3&gt;Press OK to exit application.&lt;/h3&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;If the problem persists or occurs during startup delete all settings and database files of &lt;i&gt;%1&lt;/i&gt; and try again.&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;If you wish to report this error attach the log and configuration files to your report, add all other available information and send it to one of the contact addresses below.&lt;/b&gt;&lt;br/&gt;</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

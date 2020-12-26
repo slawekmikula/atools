@@ -28,7 +28,7 @@ class QToolBar;
 namespace atools {
 namespace gui {
 class DockEventFilter;
-class MainWindowState;
+struct MainWindowState;
 
 /* Flags defining behavior when calling setFullScreenOn() */
 enum DockFlag
@@ -37,7 +37,6 @@ enum DockFlag
   HIDE_DOCKS = 1 << 0, /* Hide docks initially when fullscreen mode has no saved layout yet */
   HIDE_TOOLBARS = 1 << 1, /* As above for tool bars */
   HIDE_STATUSBAR = 1 << 2, /* As above for the status bar */
-  HIDE_MENUBAR = 1 << 3, /* As above for the main menu bar */
   MAXIMIZE = 1 << 4 /* Maximize window when going into fullscreen instead of using full screen mode */
 };
 
@@ -83,7 +82,7 @@ public:
   void currentStateToWindow();
 
   /* As above but assigns the normal state to the main window and sets the delayedFullscreen flag if
-   * fullscreen mode was enable. This allows to switch to fullscreen later to avoid a messed up layout.
+   * fullscreen mode was enabled. This allows to switch to fullscreen later to avoid a messed up layout.
    * Changes fullscreen to false.
    * Moves window to saved screen (position).*/
   void normalStateToWindow();
@@ -112,6 +111,13 @@ public:
   /* Raise main window when mouse enters window */
   bool isAutoRaiseMainWindow() const;
   void setAutoRaiseMainWindow(bool value);
+
+  /* Keep window on top of others */
+  bool isStayOnTop(QWidget *window) const;
+  void setStayOnTop(QWidget *window, bool value) const;
+
+  bool isStayOnTopMain() const;
+  void setStayOnTopMain(bool value) const;
 
   /* Forbid docking if value is false. */
   void setDockingAllowed(bool value);

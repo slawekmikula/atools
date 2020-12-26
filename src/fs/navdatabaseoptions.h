@@ -57,13 +57,11 @@ enum NavDbObjectType
   MARKER,
   APRON, /* apron and its vertices */
   APRON2, /* apron and its vertices2 lists */
-  APRONLIGHT,
-  FENCE, /* boundary and blast fences */
   TAXIWAY,
   VEHICLE, /* taxiway and parking for airport vehicles */
   TAXIWAY_RUNWAY, /* taxiway across runways */
   AIRWAY, /* all airway route processing */
-  GEOMETRY /* apron and fence geometry */
+  GEOMETRY /* apron geometry */
 };
 
 QString navDbObjectTypeToString(atools::fs::type::NavDbObjectType type);
@@ -136,7 +134,10 @@ enum OptionFlag
   ANALYZE_DATABASE = 1 << 13,
 
   /* Remove all indexes */
-  DROP_INDEXES = 1 << 14
+  DROP_INDEXES = 1 << 14,
+
+  /* Remove all indexes */
+  AIRPORT_VALIDATION = 1 << 15
 };
 
 Q_DECLARE_FLAGS(OptionFlags, OptionFlag);
@@ -175,6 +176,16 @@ public:
   void setBasepath(const QString& value)
   {
     basepath = value;
+  }
+
+  void setMsfsCommunityPath(const QString& value)
+  {
+    msfsCommunityPath = value;
+  }
+
+  void setMsfsOfficialPath(const QString& value)
+  {
+    msfsOfficialPath = value;
   }
 
   /*
@@ -295,6 +306,18 @@ public:
     return basepath;
   }
 
+  /* .../Packages/Microsoft.FlightSimulator_8wekyb3d8bbwe/LocalCache/Packages/Community */
+  const QString& getMsfsCommunityPath() const
+  {
+    return msfsCommunityPath;
+  }
+
+  /* .../Packages/Microsoft.FlightSimulator_8wekyb3d8bbwe/LocalCache/Packages/Official/OneStore */
+  const QString& getMsfsOfficialPath() const
+  {
+    return msfsOfficialPath;
+  }
+
   const QString& getSourceDatabase() const
   {
     return sourceDatabase;
@@ -302,17 +325,17 @@ public:
 
   bool isDeletes() const
   {
-    return flags & type::DELETES;
+    return flags.testFlag(type::DELETES);
   }
 
   bool isDeduplicate() const
   {
-    return flags & type::DEDUPLICATE;
+    return flags.testFlag(type::DEDUPLICATE);
   }
 
   bool isFilterRunways() const
   {
-    return flags & type::FILTER_RUNWAYS;
+    return flags.testFlag(type::FILTER_RUNWAYS);
   }
 
   const QString& getSceneryFile() const
@@ -322,62 +345,67 @@ public:
 
   bool isVerbose() const
   {
-    return flags & type::VERBOSE;
+    return flags.testFlag(type::VERBOSE);
   }
 
   bool isAutocommit() const
   {
-    return flags & type::AUTOCOMMIT;
+    return flags.testFlag(type::AUTOCOMMIT);
   }
 
   bool isIncomplete() const
   {
-    return flags & type::INCOMPLETE;
+    return flags.testFlag(type::INCOMPLETE);
   }
 
   bool isDatabaseReport() const
   {
-    return flags & type::DATABASE_REPORT;
+    return flags.testFlag(type::DATABASE_REPORT);
   }
 
   bool isVacuumDatabase() const
   {
-    return flags & type::VACUUM_DATABASE;
+    return flags.testFlag(type::VACUUM_DATABASE);
   }
 
   bool isAnalyzeDatabase() const
   {
-    return flags & type::ANALYZE_DATABASE;
+    return flags.testFlag(type::ANALYZE_DATABASE);
   }
 
   bool isDropIndexes() const
   {
-    return flags & type::DROP_INDEXES;
+    return flags.testFlag(type::DROP_INDEXES);
   }
 
   bool isBasicValidation() const
   {
-    return flags & type::BASIC_VALIDATION;
+    return flags.testFlag(type::BASIC_VALIDATION);
+  }
+
+  bool isAirportValidation() const
+  {
+    return flags.testFlag(type::AIRPORT_VALIDATION);
   }
 
   bool isResolveAirways() const
   {
-    return flags & type::RESOLVE_AIRWAYS;
+    return flags.testFlag(type::RESOLVE_AIRWAYS);
   }
 
   bool isCreateRouteTables() const
   {
-    return flags & type::CREATE_ROUTE_TABLES;
+    return flags.testFlag(type::CREATE_ROUTE_TABLES);
   }
 
   bool isReadInactive() const
   {
-    return flags & type::READ_INACTIVE;
+    return flags.testFlag(type::READ_INACTIVE);
   }
 
   bool isReadAddOnXml() const
   {
-    return flags & type::READ_ADDON_XML;
+    return flags.testFlag(type::READ_ADDON_XML);
   }
 
   /* Pure file name */
@@ -387,7 +415,7 @@ public:
   bool isIncludedLocalPath(const QString& filepath) const;
   bool isIncludedAirportIdent(const QString& icao) const;
 
-  /* Options that are not save with the object */
+  /* Options that are not saved with the object */
   bool isIncludedDirectory(const QString& dirpath) const;
   bool isIncludedFilePath(const QString& filepath) const;
 
@@ -430,6 +458,14 @@ public:
     basicValidationTables = value;
   }
 
+  /* Language for MSFS airport, city and country names like "en-US" or "de-DE" */
+  QString getLanguage() const
+  {
+    return language;
+  }
+
+  void setLanguage(const QString& value);
+
 private:
   friend QDebug operator<<(QDebug out, const atools::fs::NavDatabaseOptions& opts);
 
@@ -456,7 +492,7 @@ private:
   QString fromNativeSeparator(const QString& path) const;
   QStringList createFilterList(const QStringList& pathList);
 
-  QString sceneryFile, basepath, sourceDatabase;
+  QString sceneryFile, basepath, msfsCommunityPath, msfsOfficialPath, sourceDatabase, language = "en-US";
 
   atools::fs::type::OptionFlags flags;
 

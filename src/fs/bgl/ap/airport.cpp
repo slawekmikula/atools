@@ -18,6 +18,7 @@
 #include "fs/bgl/ap/airport.h"
 #include "fs/bgl/recordtypes.h"
 #include "fs/util/fsutil.h"
+#include "geo/calculations.h"
 #include "io/binarystream.h"
 #include "fs/bgl/converter.h"
 #include "fs/navdatabaseoptions.h"
@@ -91,13 +92,26 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
 
   fuelFlags = static_cast<ap::FuelFlags>(bs->readUInt());
 
-  bs->skip(4); // unknown, traffic scalar, unknown (FSX only)
-
-  // FSX/FS9 structure recognition workaround
-  // Check if the next record type is valid, if yes: FSX, otherwise it is a FS9 record where we have
-  // to rewind 4 bytes
-  if(!isCurrentRecordValid())
+  if(options->getSimulatorType() == atools::fs::FsPaths::SimulatorType::MSFS)
   {
+    bs->skip(2);
+    quint8 flags = bs->readUByte();
+    if((flags & 0x04) == 0x04)
+      airportClosed = true;
+    if((flags & 0x01) == 0x01)
+      msfsStar = true;
+    bs->skip(1);
+  }
+  else
+    bs->skip(4); // unknown, traffic scalar, unknown (FSX only)
+
+  if(options->getSimulatorType() == atools::fs::FsPaths::SimulatorType::MSFS)
+    bs->skip(12);
+  else if(!isCurrentRecordValid())
+  {
+    // FSX/FS9 structure recognition workaround
+    // Check if the next record type is valid, if yes: FSX, otherwise it is a FS9 record where we have
+    // to rewind 4 bytes
     bs->skip(-4);
 
     if(!isCurrentRecordValid())
@@ -113,6 +127,8 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
   QHash<ParkingKey, int> parkingNumberIndex;
   QStringList taxinames;
   int helipadStart = 1;
+  atools::io::Encoding encoding = options->getSimulatorType() ==
+                                  atools::fs::FsPaths::MSFS ? atools::io::UTF8 : atools::io::LATIN1;
 
   int subrecordIndex = 0;
   while(bs->tellg() < startOffset + size)
@@ -120,7 +136,11 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
     Record r(options, bs);
     rec::AirportRecordType type = r.getId<rec::AirportRecordType>();
     if(checkSubRecord(r))
+    {
+      qWarning().noquote().nospace() << Q_FUNC_INFO << "Invalid record" << hex << " 0x" << r.getId()
+                                     << dec << " " << airportRecordTypeStr(type) << " " << bs->tellg();
       return;
+    }
 
     // qDebug().nospace() << Q_FUNC_INFO << hex << " 0x" << r.getId()
     // << dec << " " << airportRecordTypeStr(type) << " " << bs->tellg();
@@ -128,21 +148,27 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
     switch(type)
     {
       case rec::NAME:
-        name = bs->readString(r.getSize() - Record::SIZE);
+        name = bs->readString(r.getSize() - Record::SIZE, encoding);
         break;
 
-      case rec::RUNWAY_P3D_V4:
       case rec::RUNWAY:
+      case rec::RUNWAY_P3D_V4:
+      case rec::RUNWAY_MSFS:
         if(options->isIncludedNavDbObject(type::RUNWAY))
         {
           r.seekToStart();
 
-          Runway rw = Runway(options, bs, ident, type == rec::RUNWAY_P3D_V4 ? STRUCT_P3DV4 : STRUCT_FSX);
-          if(!(options->isFilterRunways() &&
-               rw.getLength() <= MIN_RUNWAY_LENGTH_METER && rw.getSurface() == bgl::rw::GRASS))
+          StructureType structureType = STRUCT_FSX;
+          if(type == rec::RUNWAY_P3D_V4)
+            structureType = STRUCT_P3DV4;
+          else if(type == rec::RUNWAY_MSFS)
+            structureType = STRUCT_MSFS;
+
+          Runway rw = Runway(options, bs, ident, structureType);
+          if(!(options->isFilterRunways() && rw.getLength() <= MIN_RUNWAY_LENGTH_METER &&
+               rw.getSurface() == bgl::GRASS))
           {
             // append if it not a dummy runway
-
             if(!options->isFilterRunways() ||
                rw.getPosition().getPos().distanceMeterTo(getPosition().getPos()) < MAX_RUNWAY_DISTANCE_METER)
               // Omit all dummies that are far away from the airport center position
@@ -162,6 +188,7 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
       case rec::TAXI_PARKING_P3D_V5:
       case rec::TAXI_PARKING_FS9: // FS9 parking has slightly different structure
       case rec::TAXI_PARKING:
+      case rec::TAXI_PARKING_MSFS:
         if(options->isIncludedNavDbObject(type::PARKING))
         {
           StructureType structType = STRUCT_FSX;
@@ -169,6 +196,8 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
             structType = STRUCT_P3DV5;
           else if(type == rec::TAXI_PARKING_FS9)
             structType = STRUCT_FS9;
+          else if(type == rec::TAXI_PARKING_MSFS)
+            structType = STRUCT_MSFS;
 
           int numParkings = bs->readUShort();
           for(int i = 0; i < numParkings; i++)
@@ -183,11 +212,11 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
         }
         break;
 
-      case rec::APPROACH:
+      case rec::APPROACH: // SID and STAR for MSFS are currently disabled ========
         if(options->isIncludedNavDbObject(type::APPROACH))
         {
           r.seekToStart();
-          approaches.append(Approach(options, bs));
+          approaches.append(Approach(options, bs, type == rec::SID_MSFS, type == rec::STAR_MSFS));
         }
         break;
 
@@ -209,6 +238,7 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
         deleteAirports.append(DeleteAirport(options, bs));
         break;
 
+      case rec::APRON_FIRST_MSFS:
       case rec::APRON_FIRST_P3D_V5:
       case rec::APRON_FIRST:
         if(options->isIncludedNavDbObject(type::APRON))
@@ -229,14 +259,6 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
           else if(type == rec::APRON_SECOND_P3D_V4)
             structType = STRUCT_P3DV4;
           aprons2.append(Apron2(options, bs, structType));
-        }
-        break;
-
-      case rec::APRON_EDGE_LIGHTS:
-        if(options->isIncludedNavDbObject(type::APRON) && options->isIncludedNavDbObject(type::APRONLIGHT))
-        {
-          r.seekToStart();
-          apronLights.append(ApronEdgeLight(options, bs));
         }
         break;
 
@@ -269,23 +291,6 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
         }
         break;
 
-      case rec::FENCE_BOUNDARY:
-        if(options->isIncludedNavDbObject(type::FENCE))
-        {
-          r.seekToStart();
-          fences.append(Fence(options, bs));
-        }
-        numBoundaryFence++;
-        break;
-
-      case rec::FENCE_BLAST:
-        if(options->isIncludedNavDbObject(type::FENCE))
-        {
-          r.seekToStart();
-          fences.append(Fence(options, bs));
-        }
-        break;
-
       case rec::TOWER_OBJ:
         towerObj = true;
         break;
@@ -293,6 +298,7 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
       case rec::TAXI_PATH_P3D_V5:
       case rec::TAXI_PATH_P3D_V4:
       case rec::TAXI_PATH:
+      case rec::TAXI_PATH_MSFS:
         if(options->isIncludedNavDbObject(type::TAXIWAY))
         {
           StructureType structType = STRUCT_FSX;
@@ -300,6 +306,8 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
             structType = STRUCT_P3DV5;
           else if(type == rec::TAXI_PATH_P3D_V4)
             structType = STRUCT_P3DV4;
+          else if(type == rec::TAXI_PATH_MSFS)
+            structType = STRUCT_MSFS;
 
           int numPaths = bs->readUShort();
           for(int i = 0; i < numPaths; i++)
@@ -333,18 +341,38 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
         {
           int numNames = bs->readUShort();
           for(int i = 0; i < numNames; i++)
-            taxinames.append(bs->readString(8)); // TODO fix wiki - first is always 0 and length always 8
+            taxinames.append(bs->readString(8, atools::io::LATIN1)); // First is always 0 and length always 8
         }
         break;
 
-      case rec::UNKNOWN_REC:
+      case rec::FENCE_BOUNDARY:
+      case rec::FENCE_BLAST:
+      case rec::APRON_EDGE_LIGHTS:
+      case rec::UNKNOWN_003B:
+      case rec::UNKNOWN_MSFS_0057:
+      case rec::UNKNOWN_MSFS_00CD:
+      case rec::UNKNOWN_MSFS_00CF:
+      case rec::UNKNOWN_MSFS_00D8:
+      case rec::UNKNOWN_MSFS_00D9:
+      case rec::UNKNOWN_MSFS_00DD:
+      case rec::UNKNOWN_MSFS_00DE:
+
+      // Disabled SID and STAR
+      case rec::SID_MSFS:
+      case rec::STAR_MSFS:
+
+        // qWarning() << Q_FUNC_INFO << "Unknown record" << hex << " 0x" << r.getId()
+        // << dec << " " << airportRecordTypeStr(type) << " " << bs->tellg();
         break;
 
       default:
 
+        qWarning().noquote().nospace() << "Unknown record" << hex << " 0x" << r.getId()
+                                       << dec << " " << airportRecordTypeStr(type) << " " << bs->tellg();
+
         if(subrecordIndex == 0)
         {
-          qWarning().nospace().noquote() << "Ignoring airport. Unexpected intial record type in Airport record 0x"
+          qWarning().nospace().noquote() << "Ignoring airport. Unexpected initial record type in Airport record 0x"
                                          << hex << type << dec << getObjectName();
 
           // Stop reading when the first subrecord is already invalid
@@ -378,6 +406,10 @@ Airport::Airport(const NavDatabaseOptions *options, BinaryStream *bs,
   // Update all the number fields and the bounding rectangle
   updateSummaryFields();
 
+  if(flags & atools::fs::bgl::flags::AIRPORT_MSFS_DUMMY)
+    // Add a delete record for an MSFS dummy airport which contains only approaches and COM
+    deleteAirports.append(DeleteAirport(del::APPROACHES | del::COMS));
+
   if(deleteAirports.size() > 1)
     qWarning() << "Found more than one delete record in" << getObjectName();
 
@@ -406,8 +438,6 @@ bool Airport::isEmpty() const
          deleteAirports.isEmpty() &&
          aprons.isEmpty() &&
          aprons2.isEmpty() &&
-         apronLights.isEmpty() &&
-         fences.isEmpty() &&
          taxipaths.isEmpty();
 }
 
@@ -420,19 +450,18 @@ bool Airport::isCurrentRecordValid()
   return valid;
 }
 
-bool Airport::isNameMilitary(const QString& airportName)
-{
-  return atools::fs::util::isNameMilitary(airportName);
-}
-
 int Airport::calculateRating(bool isAddon) const
 {
   // Maximum rating is 5
-  return atools::fs::util::calculateAirportRating(isAddon,
-                                                  hasTowerObj(),
-                                                  getTaxiPaths().size(),
-                                                  getParkings().size() + getHelipads().size(),
-                                                  getAprons().size());
+  if(msfsStar)
+    // MSFS starred airports always get highest rating
+    return 5;
+  else
+    return atools::fs::util::calculateAirportRating(isAddon,
+                                                    hasTowerObj(),
+                                                    getTaxiPaths().size(),
+                                                    getParkings().size() + getHelipads().size(),
+                                                    getAprons().size());
 }
 
 bool Airport::isValid() const
@@ -446,28 +475,67 @@ QString Airport::getObjectName() const
          arg(ident).arg(region).arg(name).arg(position.getPos().toString());
 }
 
+void Airport::extractMainComFrequencies(const QList<Com>& coms, int& towerFrequency, int& unicomFrequency,
+                                        int& awosFrequency, int& asosFrequency, int& atisFrequency)
+{
+  for(const Com& c : coms)
+  {
+    // Use lowest frequency for default to have it deterministic
+    if((c.getType() == com::TOWER || c.getType() == com::TOWER_P3D_V5) &&
+       (towerFrequency == 0 || c.getFrequency() < towerFrequency))
+      towerFrequency = c.getFrequency();
+    else if((c.getType() == com::UNICOM || c.getType() == com::UNICOM_P3D_V5) &&
+            (unicomFrequency == 0 || c.getFrequency() < unicomFrequency))
+      unicomFrequency = c.getFrequency();
+    else if((c.getType() == com::AWOS || c.getType() == com::AWOS_P3D_V5) &&
+            (awosFrequency == 0 || c.getFrequency() < awosFrequency))
+      awosFrequency = c.getFrequency();
+    else if((c.getType() == com::ASOS || c.getType() == com::ASOS_P3D_V5) &&
+            (asosFrequency == 0 || c.getFrequency() < asosFrequency))
+      asosFrequency = c.getFrequency();
+    else if((c.getType() == com::ATIS || c.getType() == com::ATIS_P3D_V5) &&
+            (atisFrequency == 0 || c.getFrequency() < atisFrequency))
+      atisFrequency = c.getFrequency();
+  }
+}
+
+void Airport::reportFarCoordinate(const atools::geo::Pos& pos, const QString& text)
+{
+  if(opts->isAirportValidation())
+  {
+    float dist = atools::geo::meterToNm(position.getPos().distanceMeterTo(pos));
+    if(dist > 10.f)
+      qWarning() << "Airport" << ident << "at" << position.getPos()
+                 << "has far" << text << "coordinate" << pos << "at" << dist << "NM";
+  }
+}
+
+
+
 void Airport::updateSummaryFields()
 {
-  boundingRect = atools::geo::Rect(getPosition().getPos());
+  boundingRect = atools::geo::Rect(position.getPos());
 
-  if(!towerPosition.getPos().isNull())
+  if(!towerPosition.getPos().isNull() && towerPosition.getPos().isValidRange() && !towerPosition.getPos().isPole())
+  {
+    reportFarCoordinate(towerPosition.getPos(), "tower");
     boundingRect.extend(towerPosition.getPos());
+  }
 
   for(const Runway& rw : runways)
   {
     // Count runway types
     if(rw.getEdgeLight() != rw::NO_LIGHT)
       numLightRunway++;
-    if(rw.isHard())
-      numHardRunway++;
-    if(rw.isWater())
-      numWaterRunway++;
-    if(rw.isSoft())
-      numSoftRunway++;
 
     // Extend bounding rectangle for runway dimensions
+    reportFarCoordinate(rw.getPosition().getPos(), "runway");
     boundingRect.extend(rw.getPosition().getPos());
+
+    reportFarCoordinate(rw.getSecondaryPosition(), "runway secondary");
     boundingRect.extend(rw.getSecondaryPosition());
+
+    reportFarCoordinate(rw.getSecondaryPosition(), "runway primary");
     boundingRect.extend(rw.getPrimaryPosition());
 
     // Remember the longest runway attributes
@@ -477,6 +545,7 @@ void Airport::updateSummaryFields()
       longestRunwayWidth = rw.getWidth();
       longestRunwayHeading = rw.getHeading();
       longestRunwaySurface = rw.getSurface();
+      longestRunwayMaterialUuid = rw.getMaterialUuid();
     }
 
     const RunwayEnd& primary = rw.getPrimary();
@@ -499,7 +568,9 @@ void Airport::updateSummaryFields()
   }
 
   // If all runways are closed the airport is closed ...
-  airportClosed = !runways.isEmpty() && numRunwayEndClosed / 2 == runways.size();
+  // Closed flag might be set earlier by MSFS flag
+  if(!airportClosed)
+    airportClosed = !runways.isEmpty() && numRunwayEndClosed / 2 == runways.size();
 
   // ... except if there are open helipads
   for(const Helipad& pad : helipads)
@@ -511,28 +582,9 @@ void Airport::updateSummaryFields()
     }
   }
 
-  for(const Com& c : coms)
-  {
-    // Use lowest frequency for default to have it deterministic
-    if((c.getType() == com::TOWER || c.getType() == com::TOWER_P3D_V5) &&
-       (towerFrequency == 0 || c.getFrequency() < towerFrequency))
-      towerFrequency = c.getFrequency();
-    else if((c.getType() == com::UNICOM || c.getType() == com::UNICOM_P3D_V5) &&
-            (unicomFrequency == 0 || c.getFrequency() < unicomFrequency))
-      unicomFrequency = c.getFrequency();
-    else if((c.getType() == com::AWOS || c.getType() == com::AWOS_P3D_V5) &&
-            (awosFrequency == 0 || c.getFrequency() < awosFrequency))
-      awosFrequency = c.getFrequency();
-    else if((c.getType() == com::ASOS || c.getType() == com::ASOS_P3D_V5) &&
-            (asosFrequency == 0 || c.getFrequency() < asosFrequency))
-      asosFrequency = c.getFrequency();
-    else if((c.getType() == com::ATIS || c.getType() == com::ATIS_P3D_V5) &&
-            (atisFrequency == 0 || c.getFrequency() < atisFrequency))
-      atisFrequency = c.getFrequency();
-  }
-
   for(const Parking& p : parkings)
   {
+    reportFarCoordinate(p.getPosition().getPos(), "parking");
     boundingRect.extend(p.getPosition().getPos());
 
     if(p.hasJetway())
@@ -563,35 +615,48 @@ void Airport::updateSummaryFields()
       numParkingMilitaryCombat++;
   }
 
-  for(const Fence& f : fences)
+  for(const Apron& a : aprons)
   {
-    for(const BglPosition& p : f.getVertices())
+    // reportFarCoordinate(s.getPosition().getPos(), "start"); // Too CPU intense
+    for(const BglPosition& p : a.getVertices())
+    {
+      reportFarCoordinate(p.getPos(), "apron");
       boundingRect.extend(p.getPos());
+    }
   }
 
-  for(const Apron& a : aprons)
-    for(const BglPosition& p : a.getVertices())
-      boundingRect.extend(p.getPos());
-
   for(const Apron2& a : aprons2)
+  {
+    // reportFarCoordinate(s.getPosition().getPos(), "start"); // Too CPU intense
     for(const BglPosition& p : a.getVertices())
+    {
+      reportFarCoordinate(p.getPos(), "apron2");
       boundingRect.extend(p.getPos());
+    }
+  }
 
   for(const Start& s : starts)
+  {
+    reportFarCoordinate(s.getPosition().getPos(), "start");
     boundingRect.extend(s.getPosition().getPos());
+  }
 
   for(const Helipad& h : helipads)
+  {
+    reportFarCoordinate(h.getPosition().getPos(), "helipad");
     boundingRect.extend(h.getPosition().getPos());
+  }
 
   for(const TaxiPath& p : taxipaths)
   {
+    reportFarCoordinate(p.getStartPoint().getPosition().getPos(), "taxipath start");
     boundingRect.extend(p.getStartPoint().getPosition().getPos());
+
+    reportFarCoordinate(p.getEndPoint().getPosition().getPos(), "taxipath end");
     boundingRect.extend(p.getEndPoint().getPosition().getPos());
   }
 
   updateHelipads();
-
-  military = isNameMilitary(name);
 }
 
 void Airport::updateParking(const QList<atools::fs::bgl::Jetway>& jetways,
@@ -719,13 +784,11 @@ QDebug operator<<(QDebug out, const Airport& record)
   out << record.coms;
   out << record.aprons;
   out << record.aprons2;
-  out << record.apronLights;
   out << record.approaches;
   out << record.parkings;
   out << record.deleteAirports;
   out << record.helipads;
   out << record.starts;
-  out << record.fences;
   out << record.taxipaths;
   out << "]";
 

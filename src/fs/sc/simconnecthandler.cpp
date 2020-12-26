@@ -30,6 +30,8 @@
 #include <QSet>
 #include <QCache>
 #include <QLatin1Literal>
+#include <QCoreApplication>
+#include <QDir>
 
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 
@@ -68,13 +70,13 @@ enum DataDefinitionId
 struct SimDataAircraft
 {
   char aircraftTitle[256];
-  char aircraftAtcType[32];
-  char aircraftAtcModel[32];
-  char aircraftAtcId[32];
-  char aircraftAtcAirline[64];
-  char aircraftAtcFlightNumber[32];
+  char aircraftAtcType[256];
+  char aircraftAtcModel[256];
+  char aircraftAtcId[256];
+  char aircraftAtcAirline[256];
+  char aircraftAtcFlightNumber[256];
+  char category[256]; // "Airplane", "Helicopter", "Boat", "GroundVehicle", "ControlTower", "SimpleObject", "Viewer"
 
-  char category[32]; // "Airplane", "Helicopter", "Boat", "GroundVehicle", "ControlTower", "SimpleObject", "Viewer"
   qint32 userSim;
   qint32 modelRadius;
   qint32 wingSpan;
@@ -188,6 +190,7 @@ public:
   atools::fs::sc::WeatherRequest weatherRequest;
   QVector<QString> fetchedMetars;
   SIMCONNECT_EXCEPTION simconnectException;
+  SIMCONNECT_RECV_OPEN openData;
 
   bool simRunning = true, simPaused = false, verbose = false, simConnectLoaded = false,
        userDataFetched = false, aiDataFetched = false, weatherDataFetched = false;
@@ -203,22 +206,27 @@ void SimConnectHandlerPrivate::dispatchProcedure(SIMCONNECT_RECV *pData, DWORD c
   switch(pData->dwID)
   {
     case SIMCONNECT_RECV_ID_OPEN:
-      {
-        // enter code to handle SimConnect version information received in a SIMCONNECT_RECV_OPEN structure.
-        SIMCONNECT_RECV_OPEN *openData = static_cast<SIMCONNECT_RECV_OPEN *>(pData);
+      // enter code to handle SimConnect version information received in a SIMCONNECT_RECV_OPEN structure.
+      openData = *static_cast<SIMCONNECT_RECV_OPEN *>(pData);
 
-        // Print some useful simconnect interface data to log
-        qInfo() << "ApplicationName" << openData->szApplicationName;
-        qInfo().nospace() << "ApplicationVersion " << openData->dwApplicationVersionMajor
-                          << "." << openData->dwApplicationVersionMinor;
-        qInfo().nospace() << "ApplicationBuild " << openData->dwApplicationBuildMajor
-                          << "." << openData->dwApplicationBuildMinor;
-        qInfo().nospace() << "SimConnectVersion " << openData->dwSimConnectVersionMajor
-                          << "." << openData->dwSimConnectVersionMinor;
-        qInfo().nospace() << "SimConnectBuild " << openData->dwSimConnectBuildMajor
-                          << "." << openData->dwSimConnectBuildMinor;
-        break;
-      }
+      // FSX ==========
+      // App Name Microsoft Flight Simulator X App Version 10.0 App Build  62615.0 Version  10.0 Build  62615.0
+
+      // MSFS ==========
+      // SimConnectHandler App Name KittyHawk App Version 11.0 App Build 282174.999 Version 11.0 Build 62651.3
+
+      // Print some useful simconnect interface data to log ====================
+      qInfo().nospace() << "SimConnectHandler "
+                        << "App Name " << openData.szApplicationName
+                        << " App Version " << openData.dwApplicationVersionMajor
+                        << "." << openData.dwApplicationVersionMinor
+                        << " App Build " << openData.dwApplicationBuildMajor
+                        << "." << openData.dwApplicationBuildMinor
+                        << " Version " << openData.dwSimConnectVersionMajor
+                        << "." << openData.dwSimConnectVersionMinor
+                        << " Build " << openData.dwSimConnectBuildMajor
+                        << "." << openData.dwSimConnectBuildMinor;
+      break;
 
     case SIMCONNECT_RECV_ID_EXCEPTION:
       {
@@ -528,17 +536,17 @@ void SimConnectHandlerPrivate::fillDataDefinitionAicraft(DataDefinitionId defini
   // Set up the data definition, but do not yet do anything with it
   api.AddToDataDefinition(definitionId, "Title", NULL, SIMCONNECT_DATATYPE_STRING256);
 
-  api.AddToDataDefinition(definitionId, "ATC Type", NULL, SIMCONNECT_DATATYPE_STRING32);
+  api.AddToDataDefinition(definitionId, "ATC Type", NULL, SIMCONNECT_DATATYPE_STRING256);
 
-  api.AddToDataDefinition(definitionId, "ATC Model", NULL, SIMCONNECT_DATATYPE_STRING32);
+  api.AddToDataDefinition(definitionId, "ATC Model", NULL, SIMCONNECT_DATATYPE_STRING256);
 
-  api.AddToDataDefinition(definitionId, "ATC Id", NULL, SIMCONNECT_DATATYPE_STRING32);
+  api.AddToDataDefinition(definitionId, "ATC Id", NULL, SIMCONNECT_DATATYPE_STRING256);
 
-  api.AddToDataDefinition(definitionId, "ATC Airline", NULL, SIMCONNECT_DATATYPE_STRING64);
+  api.AddToDataDefinition(definitionId, "ATC Airline", NULL, SIMCONNECT_DATATYPE_STRING256);
 
-  api.AddToDataDefinition(definitionId, "ATC Flight Number", NULL, SIMCONNECT_DATATYPE_STRING32);
+  api.AddToDataDefinition(definitionId, "ATC Flight Number", NULL, SIMCONNECT_DATATYPE_STRING256);
 
-  api.AddToDataDefinition(definitionId, "Category", NULL, SIMCONNECT_DATATYPE_STRING32);
+  api.AddToDataDefinition(definitionId, "Category", NULL, SIMCONNECT_DATATYPE_STRING256);
 
   api.AddToDataDefinition(definitionId, "Is User Sim", "bool", SIMCONNECT_DATATYPE_INT32);
 
@@ -598,17 +606,30 @@ bool SimConnectHandler::loadSimConnect(const QString& manifestPath)
 {
   p->simConnectLoaded = false;
 
-  if(!p->context.create(manifestPath))
+  // Try local copy first
+  QString simconnectDll = QCoreApplication::applicationDirPath() + QDir::separator() + "SimConnect.dll";
+  bool activated = false;
+  if(!QFile::exists(simconnectDll))
+  {
+    // No local copy - load from WinSxS
+    if(!p->context.create(manifestPath))
+      return false;
+
+    if(!p->context.activate())
+      return false;
+
+    simconnectDll = "SimConnect.dll";
+    activated = true;
+  }
+
+  if(!p->context.loadLibrary(simconnectDll))
     return false;
 
-  if(!p->context.activate())
-    return false;
-
-  if(!p->context.loadLibrary("SimConnect.dll"))
-    return false;
-
-  if(!p->context.deactivate())
-    return false;
+  if(activated)
+  {
+    if(!p->context.deactivate())
+      return false;
+  }
 
   if(!p->api.bindFunctions(p->context))
     return false;
@@ -625,6 +646,16 @@ bool SimConnectHandler::isSimRunning() const
 bool SimConnectHandler::isSimPaused() const
 {
   return p->simPaused;
+}
+
+bool SimConnectHandler::canFetchWeather() const
+{
+  // Do not fetch weather in MSFS sice functions are deprecated.
+  // MSFS: SimConnect Version 11.0 Build 62651.3
+  // if(p->openData.dwSimConnectVersionMajor >= 11 && p->openData.dwSimConnectBuildMajor >= 62651)
+  // return false;
+  return !(QString(p->openData.szApplicationName) == "KittyHawk" ||
+           (p->openData.dwSimConnectVersionMajor == 11 && p->openData.dwSimConnectBuildMajor == 62651));
 }
 
 bool SimConnectHandler::isLoaded() const

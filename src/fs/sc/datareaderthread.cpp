@@ -37,8 +37,6 @@ DataReaderThread::DataReaderThread(QObject *parent, bool verboseLog)
   qDebug() << Q_FUNC_INFO;
   setObjectName("DataReaderThread");
 
-  qInfo() << "SimConnect available:" << (handler != nullptr ? handler->isLoaded() : false);
-
   options = atools::fs::sc::FETCH_AI_AIRCRAFT | atools::fs::sc::FETCH_AI_BOAT;
 }
 
@@ -50,8 +48,10 @@ DataReaderThread::~DataReaderThread()
 void DataReaderThread::setHandler(ConnectHandler *connectHandler)
 {
   qDebug() << Q_FUNC_INFO << connectHandler->getName();
+  qDebug() << "SimConnect available:" << (handler != nullptr ? handler->isLoaded() : false);
 
   handler = connectHandler;
+
 }
 
 void DataReaderThread::connectToSimulator()
@@ -163,7 +163,7 @@ void DataReaderThread::run()
         closeReplay();
       }
     } // if(loadReplayFile != nullptr)
-    else if(fetchData(data, SIMCONNECT_AI_RADIUS_KM, opts))
+    else if(fetchData(data, aiFetchRadiusKm, opts))
     {
       // Data fetched from simconnect - send to client ============================================
       if(verbose && !data.getMetars().isEmpty())
@@ -172,7 +172,7 @@ void DataReaderThread::run()
       emit postSimConnectData(data);
 
       if(saveReplayFile != nullptr && saveReplayFile->isOpen() && data.getPacketId() > 0)
-        // Save only simulator packets, not weather replys
+        // Save only simulator packets, not weather replays
         data.write(saveReplayFile);
     }
     else
@@ -274,10 +274,10 @@ bool DataReaderThread::fetchData(atools::fs::sc::SimConnectData& data, int radiu
 
     handler->fetchWeatherData(data);
 
-    // Weather requests and reply always have packet it 0
+    // Weather requests and reply always have packet id 0
     data.setPacketId(0);
 
-    // Force an empty reply to the client - even no weather was fetched
+    // Force an empty reply to the client - even if no weather was fetched
     retval = true;
   }
   else
@@ -304,16 +304,6 @@ bool DataReaderThread::fetchData(atools::fs::sc::SimConnectData& data, int radiu
     qDebug() << Q_FUNC_INFO << "leave";
 
   return retval;
-}
-
-void DataReaderThread::setSimconnectOptions(Options value)
-{
-  options = value;
-}
-
-void DataReaderThread::setReconnectRateSec(int reconnectSec)
-{
-  reconnectRateSec = reconnectSec;
 }
 
 void DataReaderThread::setupReplay()
@@ -401,9 +391,14 @@ void DataReaderThread::closeReplay()
   }
 }
 
-bool DataReaderThread::isSimconnectAvailable()
+bool DataReaderThread::isSimconnectAvailable() const
 {
   return handler->isLoaded();
+}
+
+bool DataReaderThread::canFetchWeather() const
+{
+  return handler->canFetchWeather();
 }
 
 bool DataReaderThread::isFsxHandler()
@@ -420,6 +415,9 @@ void DataReaderThread::setWeatherRequest(atools::fs::sc::WeatherRequest request)
 {
   if(verbose)
     qDebug() << Q_FUNC_INFO;
+
+  if(!canFetchWeather())
+    return;
 
   if(saveReplayFile != nullptr)
   {

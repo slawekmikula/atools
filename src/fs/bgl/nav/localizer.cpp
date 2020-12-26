@@ -20,6 +20,8 @@
 #include "fs/bgl/recordtypes.h"
 #include "io/binarystream.h"
 #include "fs/bgl/converter.h"
+#include "geo/calculations.h"
+#include "fs/navdatabaseoptions.h"
 
 namespace atools {
 namespace fs {
@@ -33,7 +35,7 @@ Localizer::Localizer(const NavDatabaseOptions *options, BinaryStream *bs)
   runwayNumber = bs->readUByte();
   runwayDesignator = bs->readUByte();
   heading = bs->readFloat();
-  width = bs->readFloat();
+  width = std::min(bs->readFloat(), 20.f);
 }
 
 Localizer::~Localizer()
@@ -50,11 +52,11 @@ QDebug operator<<(QDebug out, const Localizer& record)
   QDebugStateSaver saver(out);
 
   out.nospace().noquote() << static_cast<const Record&>(record)
-  << " Localizer["
-  << "runway " << record.getRunwayName()
-  << ", heading " << record.heading
-  << ", width " << record.width
-  << "]";
+                          << " Localizer["
+                          << "runway " << record.getRunwayName()
+                          << ", heading " << record.heading
+                          << ", width " << record.width
+                          << "]";
   return out;
 }
 

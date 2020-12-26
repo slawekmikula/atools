@@ -246,6 +246,23 @@ public:
                                     const QString& destName, const QString& destIdent,
                                     const QString& suffix, int altitude, bool clean = true);
 
+  /* Direct, LowAlt, etc. only used for MS simulators */
+  atools::fs::pln::RouteType getRouteType() const
+  {
+    return routeType;
+  }
+
+  void setRouteType(atools::fs::pln::RouteType value)
+  {
+    routeType = value;
+  }
+
+  /* Copy departure and destination from first and last entry */
+  void adjustDepartureAndDestination(bool force = false);
+
+  /* Set altitude in all positions */
+  void assignAltitudeToAllEntries();
+
 private:
   friend QDebug operator<<(QDebug out, const atools::fs::pln::Flightplan& record);
 
@@ -268,6 +285,7 @@ private:
   static const int MAX_ALTITUDE = 80000;
 
   atools::fs::pln::FlightplanType flightplanType = VFR;
+  atools::fs::pln::RouteType routeType = DIRECT;
 
   atools::fs::pln::FlightplanEntryListType entries;
 

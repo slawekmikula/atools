@@ -15,39 +15,40 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#ifndef ATOOLS_FS_DB_DELETEAIRPORTWRITER_H
-#define ATOOLS_FS_DB_DELETEAIRPORTWRITER_H
+#include "gui/clicktooltiphandler.h"
 
-#include "fs/db/writerbase.h"
-#include "fs/bgl/ap/del/deleteairport.h"
+#include <QLabel>
+#include <QMouseEvent>
+#include <QToolTip>
 
 namespace atools {
-namespace fs {
-namespace db {
+namespace gui {
 
-/*
- * Write the delete airport metadata. The writer does not delete anything.
- */
-class DeleteAirportWriter :
-  public atools::fs::db::WriterBase<atools::fs::bgl::DeleteAirport>
+ClickToolTipHandler::ClickToolTipHandler(QLabel *parentLabel)
+  : QObject(parentLabel), label(parentLabel)
 {
-public:
-  DeleteAirportWriter(atools::sql::SqlDatabase& db, atools::fs::db::DataWriter& dataWriter)
-    : WriterBase(db, dataWriter, "delete_airport")
+
+}
+
+ClickToolTipHandler::~ClickToolTipHandler()
+{
+
+}
+
+bool ClickToolTipHandler::eventFilter(QObject *object, QEvent *event)
+{
+  if(event->type() == QEvent::MouseButtonRelease && !label->hasSelectedText())
   {
+    QMouseEvent *mouseEvent = dynamic_cast<QMouseEvent *>(event);
+    if(mouseEvent != nullptr)
+    {
+      QToolTip::showText(QCursor::pos(), label->toolTip(), label);
+      return true;
+    }
   }
 
-  virtual ~DeleteAirportWriter()
-  {
-  }
+  return QObject::eventFilter(object, event);
+}
 
-protected:
-  virtual void writeObject(const atools::fs::bgl::DeleteAirport *type) override;
-
-};
-
-} // namespace writer
-} // namespace fs
+} // namespace gui
 } // namespace atools
-
-#endif // ATOOLS_FS_DB_DELETEAIRPORTWRITER_H

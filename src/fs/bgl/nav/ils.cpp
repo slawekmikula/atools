@@ -23,6 +23,7 @@
 #include "fs/bgl/converter.h"
 #include "fs/bgl/recordtypes.h"
 #include "io/binarystream.h"
+#include "fs/navdatabaseoptions.h"
 
 namespace atools {
 namespace fs {
@@ -67,6 +68,9 @@ Ils::Ils(const NavDatabaseOptions *options, BinaryStream *bs)
   // Read airport ICAO ident
   airportIdent = converter::intToIcao((regionFlags >> 11) & 0x1fffff, true);
 
+  atools::io::Encoding encoding = options->getSimulatorType() ==
+                                  atools::fs::FsPaths::MSFS ? atools::io::UTF8 : atools::io::LATIN1;
+
   // Read all subrecords of ILS
   while(bs->tellg() < startOffset + size)
   {
@@ -78,7 +82,7 @@ Ils::Ils(const NavDatabaseOptions *options, BinaryStream *bs)
     switch(t)
     {
       case rec::ILS_VOR_NAME:
-        name = bs->readString(r.getSize() - Record::SIZE);
+        name = bs->readString(r.getSize() - Record::SIZE, encoding);
         break;
       case rec::LOCALIZER:
         // This is actually not optional for an ILS
@@ -95,8 +99,7 @@ Ils::Ils(const NavDatabaseOptions *options, BinaryStream *bs)
         break;
       default:
         qWarning().nospace().noquote() << "Unexpected record type in ILS record 0x"
-                                       << hex << t << dec << " for ident "
-                                       << ident;
+                                       << hex << t << dec << " for ident " << ident;
     }
     r.seekToEnd();
   }
@@ -114,7 +117,7 @@ QDebug operator<<(QDebug out, const Ils& record)
   QDebugStateSaver saver(out);
 
   out.nospace().noquote() << static_cast<const NavBase&>(record)
-  << " Ils[backcourse " << record.backcourse;
+                          << " Ils[backcourse " << record.backcourse;
   if(record.localizer != nullptr)
     out << ", " << *record.localizer;
   if(record.glideslope != nullptr)

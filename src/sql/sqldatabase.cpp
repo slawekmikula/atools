@@ -45,11 +45,13 @@ SqlDatabase::SqlDatabase(const SqlDatabase& other)
   autocommit = other.autocommit;
   readonly = other.readonly;
   automaticTransactions = other.automaticTransactions;
+  name = other.name;
 }
 
 SqlDatabase::SqlDatabase(const QString& connectionName)
 {
   db = QSqlDatabase::database(connectionName, false);
+  name = connectionName;
 }
 
 SqlDatabase::SqlDatabase(const QSettings& settings, const QString& groupName)
@@ -58,7 +60,7 @@ SqlDatabase::SqlDatabase(const QSettings& settings, const QString& groupName)
   if(type.isEmpty())
     type = "QSQLITE";
 
-  QString name = settings.value(groupName + "/ConnectionName").toString();
+  name = settings.value(groupName + "/ConnectionName").toString();
   if(name.isEmpty())
     name = QLatin1String(QSqlDatabase::defaultConnection);
   db = QSqlDatabase::addDatabase(type, name);
@@ -80,6 +82,7 @@ SqlDatabase& SqlDatabase::operator=(const SqlDatabase& other)
   autocommit = other.autocommit;
   readonly = other.readonly;
   automaticTransactions = other.automaticTransactions;
+  name = other.name;
   return *this;
 }
 
@@ -108,6 +111,8 @@ void SqlDatabase::open(const QStringList& pragmas)
       qInfo() << pragma << "value is now: " << query.value(0).toString();
     query.finish();
   }
+
+  recordFileMetadata();
 }
 
 void SqlDatabase::open(const QString& user, const QString& password, const QStringList& pragmas)
@@ -125,6 +130,8 @@ void SqlDatabase::open(const QString& user, const QString& password, const QStri
 
   if(!readonly && automaticTransactions)
     transactionInternal();
+
+  recordFileMetadata();
 }
 
 void SqlDatabase::close()
@@ -133,6 +140,10 @@ void SqlDatabase::close()
   checkError(isOpen(), "Closing already closed database");
   if(!readonly && automaticTransactions)
     rollback();
+
+  if(readonly && isFileModified())
+    qWarning() << Q_FUNC_INFO << "Readonly database modified when closed" << databaseName();
+
   db.close();
 
   qInfo() << "Closed database" << databaseName();
@@ -143,6 +154,39 @@ void SqlDatabase::close()
   {
     if(QFile::remove(journalName))
       qDebug() << Q_FUNC_INFO << "Removed" << journalName;
+  }
+}
+
+bool SqlDatabase::isFileModified() const
+{
+  if(isOpen())
+  {
+    QFileInfo file(databaseName());
+    if(file.exists())
+    {
+      if(file.size() != fileSize)
+        return true;
+
+      if(fileModificationTime != file.lastModified())
+        return true;
+    }
+  }
+  return false;
+}
+
+void SqlDatabase::recordFileMetadata()
+{
+  fileSize = 0L;
+  fileModificationTime = QDateTime();
+
+  if(isOpen())
+  {
+    QFileInfo file(databaseName());
+    if(file.exists())
+    {
+      fileSize = file.size();
+      fileModificationTime = file.lastModified();
+    }
   }
 }
 

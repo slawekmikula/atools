@@ -155,10 +155,7 @@ public:
   /* true if heading of "from" to "to" is towards west or east. */
   bool isWestCourse() const;
 
-  bool isEastCourse() const
-  {
-    return !isWestCourse();
-  }
+  bool isEastCourse() const;
 
 private:
   friend QDataStream& operator<<(QDataStream& out, const atools::geo::Line& obj);
@@ -169,6 +166,9 @@ private:
 
   atools::geo::Pos pos1, pos2;
 };
+
+/* Invalid line */
+const atools::geo::Line EMPTY_LINE;
 
 uint qHash(const atools::geo::Line& line);
 

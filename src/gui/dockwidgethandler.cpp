@@ -35,6 +35,10 @@
 namespace atools {
 namespace gui {
 
+/* Do not restore these states */
+const static Qt::WindowStates WINDOW_STATE_MASK =
+  ~(Qt::WindowStates(Qt::WindowMinimized) | Qt::WindowStates(Qt::WindowActive));
+
 /* Saves the main window states and states of all attached widgets like the status bars and the menu bar. */
 struct MainWindowState
 {
@@ -71,22 +75,20 @@ struct MainWindowState
   QPoint mainWindowPosition;
   Qt::WindowStates mainWindowStates = Qt::WindowNoState;
 
-  bool statusBarVisible = true, menuVisible = true, // Not covered by saveState in main window
-       valid = false, verbose = false;
+  bool statusBarVisible = true, valid = false, verbose = false;
 };
 
 QDebug operator<<(QDebug out, const MainWindowState& obj)
 {
   QDebugStateSaver saver(out);
   out.noquote().nospace() << "MainWindowState["
-  << "size " << obj.mainWindowState.size()
-  << ", window size " << obj.mainWindowSize
-  << ", window position " << obj.mainWindowPosition
-  << ", window states " << obj.mainWindowStates
-  << ", statusbar " << obj.statusBarVisible
-  << ", menu " << obj.menuVisible
-  << ", valid " << obj.valid
-  << "]";
+                          << "size " << obj.mainWindowState.size()
+                          << ", window size " << obj.mainWindowSize
+                          << ", window position " << obj.mainWindowPosition
+                          << ", window states " << obj.mainWindowStates
+                          << ", statusbar " << obj.statusBarVisible
+                          << ", valid " << obj.valid
+                          << "]";
   return out;
 }
 
@@ -103,7 +105,7 @@ void MainWindowState::toWindow(QMainWindow *mainWindow, const QPoint *position) 
     mainWindow->move(position == nullptr ? mainWindowPosition : *position);
 
   // Set normal, maximized or fullscreen
-  mainWindow->setWindowState(mainWindowStates);
+  mainWindow->setWindowState(mainWindowStates & WINDOW_STATE_MASK);
 
   if(!mainWindowStates.testFlag(Qt::WindowMaximized) && !mainWindowStates.testFlag(Qt::WindowFullScreen))
   {
@@ -112,13 +114,16 @@ void MainWindowState::toWindow(QMainWindow *mainWindow, const QPoint *position) 
       mainWindow->resize(mainWindowSize);
     mainWindow->move(mainWindowPosition);
   }
-  mainWindow->statusBar()->setVisible(statusBarVisible);
-  mainWindow->menuWidget()->setVisible(menuVisible);
+  if(mainWindow->statusBar() != nullptr)
+    mainWindow->statusBar()->setVisible(statusBarVisible);
 
   // Restores the state of this mainwindow's toolbars and dockwidgets. Also restores the corner settings too.
   // Has to be called after setting size to avoid unwanted widget resizing
   if(!mainWindowState.isEmpty())
     mainWindow->restoreState(mainWindowState);
+
+  if(mainWindow->menuWidget() != nullptr)
+    mainWindow->menuWidget()->setVisible(true); // Do not hide
 }
 
 void MainWindowState::fromWindow(const QMainWindow *mainWindow)
@@ -129,7 +134,6 @@ void MainWindowState::fromWindow(const QMainWindow *mainWindow)
   mainWindowPosition = mainWindow->pos();
   mainWindowStates = mainWindow->windowState();
   statusBarVisible = mainWindow->statusBar()->isVisible();
-  menuVisible = mainWindow->menuWidget()->isVisible();
   valid = true;
 
   if(verbose)
@@ -142,7 +146,6 @@ void MainWindowState::initFullscreen(atools::gui::DockFlags flags)
 
   mainWindowStates = flags.testFlag(MAXIMIZE) ? Qt::WindowMaximized : Qt::WindowFullScreen;
   statusBarVisible = !flags.testFlag(HIDE_STATUSBAR);
-  menuVisible = !flags.testFlag(HIDE_MENUBAR);
   valid = true;
 
   if(verbose)
@@ -156,21 +159,22 @@ void MainWindowState::clear()
   mainWindowPosition = QPoint();
   mainWindowStates = Qt::WindowNoState;
   statusBarVisible = true,
-  menuVisible = true;
   valid = false;
 }
 
 QDataStream& operator<<(QDataStream& out, const atools::gui::MainWindowState& state)
 {
+  bool menuVisible = true;
   out << state.valid << state.mainWindowState << state.mainWindowSize << state.mainWindowPosition
-  << state.mainWindowStates << state.statusBarVisible << state.menuVisible;
+      << state.mainWindowStates << state.statusBarVisible << menuVisible;
   return out;
 }
 
 QDataStream& operator>>(QDataStream& in, atools::gui::MainWindowState& state)
 {
+  bool menuVisible;
   in >> state.valid >> state.mainWindowState >> state.mainWindowSize >> state.mainWindowPosition
-  >> state.mainWindowStates >> state.statusBarVisible >> state.menuVisible;
+  >> state.mainWindowStates >> state.statusBarVisible >> menuVisible;
   return in;
 }
 
@@ -227,7 +231,7 @@ bool DockEventFilter::eventFilter(QObject *object, QEvent *event)
 DockWidgetHandler::DockWidgetHandler(QMainWindow *parentMainWindow, const QList<QDockWidget *>& dockWidgetsParam,
                                      const QList<QToolBar *>& toolBarsParam, bool verboseLog)
   : QObject(parentMainWindow), mainWindow(parentMainWindow), dockWidgets(dockWidgetsParam), toolBars(toolBarsParam),
-    verbose(verboseLog)
+  verbose(verboseLog)
 {
   dockEventFilter = new DockEventFilter();
   normalState = new MainWindowState;
@@ -311,10 +315,10 @@ void DockWidgetHandler::toggledDockWindow(QDockWidget *dockWidget, bool checked)
   {
     // Find a stack that contains the widget ==================
     auto it = std::find_if(dockStackList.begin(), dockStackList.end(),
-                           [dockWidget](QList<QDockWidget *> &list)
-                           {
-                             return list.contains(dockWidget);
-                           });
+                           [dockWidget](QList<QDockWidget *>& list)
+        {
+          return list.contains(dockWidget);
+        });
 
     if(it != dockStackList.end())
     {
@@ -364,17 +368,17 @@ void DockWidgetHandler::updateDockTabStatus(QDockWidget *dockWidget)
   QList<QDockWidget *> tabified = mainWindow->tabifiedDockWidgets(dockWidget);
   if(!tabified.isEmpty())
   {
-    auto it = std::find_if(dockStackList.begin(), dockStackList.end(), [dockWidget](QList<QDockWidget *> &list)->bool
-                           {
-                             return list.contains(dockWidget);
-                           });
+    auto it = std::find_if(dockStackList.begin(), dockStackList.end(), [dockWidget](QList<QDockWidget *>& list) -> bool
+        {
+          return list.contains(dockWidget);
+        });
 
     if(it == dockStackList.end())
     {
-      auto rmIt = std::remove_if(tabified.begin(), tabified.end(), [] (QDockWidget * dock)->bool
-                                 {
-                                   return dock->isFloating();
-                                 });
+      auto rmIt = std::remove_if(tabified.begin(), tabified.end(), [](QDockWidget *dock) -> bool
+          {
+            return dock->isFloating();
+          });
       if(rmIt != tabified.end())
         tabified.erase(rmIt, tabified.end());
 
@@ -439,6 +443,41 @@ bool DockWidgetHandler::isAutoRaiseMainWindow() const
 void DockWidgetHandler::setAutoRaiseMainWindow(bool value)
 {
   dockEventFilter->autoRaiseMainWindow = value;
+}
+
+void DockWidgetHandler::setStayOnTopMain(bool value) const
+{
+  setStayOnTop(mainWindow, value);
+
+  for(QDockWidget *dock : dockWidgets)
+  {
+    if(dock->isFloating())
+      setStayOnTop(dock, value);
+  }
+}
+
+bool DockWidgetHandler::isStayOnTopMain() const
+{
+  return isStayOnTop(mainWindow);
+}
+
+void DockWidgetHandler::setStayOnTop(QWidget *window, bool value) const
+{
+  if(window->windowFlags().testFlag(Qt::WindowStaysOnTopHint) != value)
+  {
+    bool visible = window->isVisible();
+
+    window->setWindowFlag(Qt::WindowStaysOnTopHint, value);
+
+    if(visible)
+      // Need to reopen window since changing window flags closes window
+      window->show();
+  }
+}
+
+bool DockWidgetHandler::isStayOnTop(QWidget *window) const
+{
+  return window->windowFlags().testFlag(Qt::WindowStaysOnTopHint);
 }
 
 void DockWidgetHandler::setDockingAllowed(bool value)
@@ -613,7 +652,7 @@ void DockWidgetHandler::resetWindowState(const QSize& size, const QString& filen
       fullscreen = false;
 
       // End maximized and fullscreen state
-      mainWindow->setWindowState(Qt::WindowActive);
+      mainWindow->setWindowState(Qt::WindowNoState);
 
       // Move to origin and apply size
       mainWindow->move(QGuiApplication::primaryScreen()->availableGeometry().topLeft());
@@ -624,6 +663,9 @@ void DockWidgetHandler::resetWindowState(const QSize& size, const QString& filen
 
       normalState->fromWindow(mainWindow);
       fullscreenState->clear();
+
+      if(mainWindow->menuWidget() != nullptr)
+        mainWindow->menuWidget()->setVisible(true); // Do not hide
     }
     else
       throw atools::Exception(tr("Error reading \"%1\": %2").arg(filename).arg(file.errorString()));

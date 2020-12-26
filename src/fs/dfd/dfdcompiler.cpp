@@ -91,7 +91,6 @@ void DfdCompiler::writeAirports()
   airportWriteQuery->bindValue(":has_tower_object", 0);
   airportWriteQuery->bindValue(":is_closed", 0);
   airportWriteQuery->bindValue(":is_addon", 0);
-  airportWriteQuery->bindValue(":num_boundary_fence", 0);
   airportWriteQuery->bindValue(":num_parking_gate", 0);
   airportWriteQuery->bindValue(":num_parking_ga_ramp", 0);
   airportWriteQuery->bindValue(":num_parking_cargo", 0);
@@ -1402,7 +1401,7 @@ void DfdCompiler::updateIlsGeometry()
       Pos pos(from.valueFloat("lonx"), from.valueFloat("laty"));
 
       float length = atools::geo::nmToMeter(ILS_FEATHER_LEN_NM);
-      float heading = atools::geo::opposedCourseDeg(from.valueFloat("loc_heading"));
+      float heading = atools::geo::normalizeCourse(atools::geo::opposedCourseDeg(from.valueFloat("loc_heading")));
 
       // Corner endpoints
       Pos p1 = pos.endpoint(length, heading - ILS_FEATHER_WIDTH / 2.f);
@@ -1458,8 +1457,8 @@ void DfdCompiler::updateTreeLetterAirportCodes()
   // updateTreeLetterAirportCodes(codeMap, "transition_leg", "fix_airport_ident");
 
   updateTreeLetterAirportCodes(codeMap, "ils", "loc_airport_ident");
-  updateTreeLetterAirportCodes(codeMap, "airway_point", "next_airport_ident");
-  updateTreeLetterAirportCodes(codeMap, "airway_point", "previous_airport_ident");
+  updateTreeLetterAirportCodes(codeMap, "tmp_airway_point", "next_airport_ident");
+  updateTreeLetterAirportCodes(codeMap, "tmp_airway_point", "previous_airport_ident");
 }
 
 void DfdCompiler::updateTreeLetterAirportCodes(const QHash<QString, QString>& codeMap, const QString& table,

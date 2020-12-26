@@ -75,19 +75,9 @@ enum FileFormat
   FSC_PLN, /* FSC ini style PLN flight plan - can load only */
   FLIGHTGEAR, /* FlightGear XML format - load and save  */
   LNM_PLN, /* Little Navmap's own flight plan format  */
-  GARMIN_FPL /* Garmin FPL - XML format */
+  GARMIN_FPL, /* Garmin FPL - XML format */
+  MSFS_PLN /* MSFS PLN  */
 };
-
-enum SaveOption
-{
-  SAVE_NO_OPTIONS = 0,
-
-  /* Save Garmin GNS format with user waypoints */
-  SAVE_GNS_USER_WAYPOINTS = 1 << 2
-};
-
-Q_DECLARE_FLAGS(SaveOptions, SaveOption);
-Q_DECLARE_OPERATORS_FOR_FLAGS(atools::fs::pln::SaveOptions);
 
 enum FlightplanType
 {

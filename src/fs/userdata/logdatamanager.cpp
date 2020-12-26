@@ -141,7 +141,7 @@ LogdataManager::LogdataManager(sql::SqlDatabase *sqlDb)
   : DataManagerBase(sqlDb, "logbook", "logbook_id",
                     ":/atools/resources/sql/fs/logbook/create_logbook_schema.sql",
                     ":/atools/resources/sql/fs/logbook/drop_logbook_schema.sql",
-                    "little_navmap_logbook_backup.csv")
+                    "little_navmap_logbook_backup.csv"), cache(MAX_CACHE_ENTRIES)
 {
 
 }
@@ -283,6 +283,7 @@ int LogdataManager::importCsv(const QString& filepath)
                                                                             true /* nowarn */).toUtf8()));
 
       // Fill null fields with empty strings to avoid issues when searching
+      // Also turn empty BLOBs to NULL
       fixEmptyFields(insertQuery);
 
       insertQuery.exec();
@@ -465,6 +466,7 @@ int LogdataManager::importXplane(const QString& filepath,
         insertQuery.bindValue(":description", description);
 
         // Fill null fields with empty strings to avoid issues when searching
+        // Also turn empty BLOBs to NULL
         fixEmptyFields(insertQuery);
 
         insertQuery.exec();
@@ -680,8 +682,20 @@ void LogdataManager::fixEmptyStrField(sql::SqlRecord& rec, const QString& name)
 
 void LogdataManager::fixEmptyStrField(sql::SqlQuery& query, const QString& name)
 {
-  if(query.boundValue(name, true).isNull())
+  if(query.boundValue(name, true /* ignoreInvalid */).isNull())
     query.bindValue(name, "");
+}
+
+void LogdataManager::fixEmptyBlobField(sql::SqlRecord& rec, const QString& name)
+{
+  if(rec.contains(name) && (rec.value(name).toByteArray().isEmpty()))
+    rec.setNull(name);
+}
+
+void LogdataManager::fixEmptyBlobField(sql::SqlQuery& query, const QString& name)
+{
+  if(query.boundValue(name, true /* ignoreInvalid */).toByteArray().isEmpty())
+    query.bindValue(name, QVariant(QVariant::ByteArray));
 }
 
 void LogdataManager::fixEmptyFields(sql::SqlRecord& rec)
@@ -697,6 +711,10 @@ void LogdataManager::fixEmptyFields(sql::SqlRecord& rec)
   fixEmptyStrField(rec, "simulator");
   fixEmptyStrField(rec, "departure_ident");
   fixEmptyStrField(rec, "destination_ident");
+
+  fixEmptyBlobField(rec, "flightplan");
+  fixEmptyBlobField(rec, "aircraft_perf");
+  fixEmptyBlobField(rec, "aircraft_trail");
 }
 
 void LogdataManager::fixEmptyFields(sql::SqlQuery& query)
@@ -712,23 +730,40 @@ void LogdataManager::fixEmptyFields(sql::SqlQuery& query)
   fixEmptyStrField(query, ":simulator");
   fixEmptyStrField(query, ":departure_ident");
   fixEmptyStrField(query, ":destination_ident");
+
+  fixEmptyBlobField(query, ":flightplan");
+  fixEmptyBlobField(query, ":aircraft_perf");
+  fixEmptyBlobField(query, ":aircraft_trail");
 }
 
-void LogdataManager::getFlightStatsTripTime(float& timeMaximum, float& timeAverage, float& timeMaximumSim,
-                                            float& timeAverageSim)
+void LogdataManager::getFlightStatsTripTime(float& timeMaximum, float& timeAverage, float& timeTotal,
+                                            float& timeMaximumSim, float& timeAverageSim, float& timeTotalSim)
 {
-  SqlQuery query("select max(time_real), avg(time_real), max(time_sim), avg(time_sim) from (select "
-                 "strftime('%s', destination_time) - strftime('%s', departure_time) as time_real, "
-                 "strftime('%s', destination_time_sim) - strftime('%s', departure_time_sim) as time_sim "
-                 "from " + tableName + ")", db);
-  query.exec();
+  SqlQuery query(db);
+
+  query.exec("select max(time_real), avg(time_real), sum(time_real) "
+             "from (select strftime('%s', destination_time) - strftime('%s', departure_time) as time_real "
+             "from " + tableName + ") where time_real > 0");
   if(query.next())
   {
-    timeMaximum = query.valueFloat(0) / 3600.f;
-    timeAverage = query.valueFloat(1) / 3600.f;
-    timeMaximumSim = query.valueFloat(2) / 3600.f;
-    timeAverageSim = query.valueFloat(3) / 3600.f;
+    int idx = 0;
+    timeMaximum = query.valueFloat(idx++) / 3600.f;
+    timeAverage = query.valueFloat(idx++) / 3600.f;
+    timeTotal = query.valueFloat(idx++) / 3600.f;
   }
+  query.finish();
+
+  query.exec("select max(time_sim), avg(time_sim), sum(time_sim) "
+             "from (select strftime('%s', destination_time_sim) - strftime('%s', departure_time_sim) as time_sim "
+             "from " + tableName + ") where time_sim > 0");
+  if(query.next())
+  {
+    int idx = 0;
+    timeMaximumSim = query.valueFloat(idx++) / 3600.f;
+    timeAverageSim = query.valueFloat(idx++) / 3600.f;
+    timeTotalSim = query.valueFloat(idx++) / 3600.f;
+  }
+  query.finish();
 }
 
 } // namespace userdata

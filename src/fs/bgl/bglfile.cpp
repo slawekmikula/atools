@@ -32,6 +32,7 @@
 #include "fs/bgl/nav/waypoint.h"
 #include "fs/bgl/boundary.h"
 #include "fs/bgl/recordtypes.h"
+#include "fs/scenery/sceneryarea.h"
 
 #include <QList>
 #include <QDebug>
@@ -55,7 +56,7 @@ BglFile::~BglFile()
   deleteAllObjects();
 }
 
-void BglFile::readFile(QString file)
+void BglFile::readFile(QString file, const atools::fs::scenery::SceneryArea& area)
 {
   deleteAllObjects();
   filename = file;
@@ -85,8 +86,7 @@ void BglFile::readFile(QString file)
     if(options->isIncludedNavDbObject(type::BOUNDARY))
       readBoundaryRecords(&bs);
 
-    readRecords(&bs);
-
+    readRecords(&bs, area);
     ifs.close();
   }
 }
@@ -192,9 +192,12 @@ void BglFile::readSections(BinaryStream *bs)
     if(supportedSectionTypes.contains(s.getType()))
     {
       if(options->isVerbose())
-        qDebug() << s;
+        qDebug() << "Section" << s;
       sections.append(s);
     }
+    else if(options->isVerbose())
+      qDebug() << "Unsupported section" << s;
+
   }
 
   // Read subsections for each section
@@ -243,7 +246,7 @@ const Record *BglFile::handleIlsVor(BinaryStream *bs)
   return nullptr;
 }
 
-void BglFile::readRecords(BinaryStream *bs)
+void BglFile::readRecords(BinaryStream *bs, const atools::fs::scenery::SceneryArea& area)
 {
   for(Subsection& subsection : subsections)
   {
@@ -274,7 +277,8 @@ void BglFile::readRecords(BinaryStream *bs)
           if(options->isIncludedNavDbObject(type::AIRPORT))
             // Will return null if ICAO is excluded in configuration
             // Read airport and all subrecords, like runways, com, approaches, waypoints and so on
-            rec = createRecord<Airport>(bs, &airports, bgl::flags::NONE);
+            rec = createRecord<Airport>(bs, &airports,
+                                        area.isNavdata() ? bgl::flags::AIRPORT_MSFS_DUMMY : bgl::flags::NONE);
           break;
         case section::AIRPORT_ALT:
           qWarning() << "Found alternate airport ID";

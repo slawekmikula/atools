@@ -34,7 +34,7 @@ const static QChar SEP(QDir::separator());
 
 QString version()
 {
-  return "3.5.2.develop"; // VERSION_NUMBER - atools
+  return "3.7.0.develop"; // VERSION_NUMBER - atools
 }
 
 QString gitRevision()
@@ -181,10 +181,20 @@ QString replaceVar(QString str, const QHash<QString, QVariant>& variableValues)
   return retval;
 }
 
-QString cleanFilename(const QString& filename)
+QString cleanFilename(const QString& filename, int maxLength)
 {
   return QString(filename).replace('\\', ' ').replace('/', ' ').replace(':', ' ').replace('\'', ' ').replace('\"', ' ').
-         replace('*', ' ').replace('<', ' ').replace('>', ' ').replace('?', ' ').replace('$', ' ').simplified();
+         replace('*', ' ').replace('<', ' ').replace('>', ' ').replace('?', ' ').replace('$', ' ').replace('|', ' ').
+         simplified().mid(0, maxLength);
+}
+
+bool strContains(const QString& name, const QStringList& list)
+{
+  for(const QString& val : list)
+    if(name.contains(val))
+      return true;
+
+  return false;
 }
 
 bool strContains(const QString& name, const std::initializer_list<QString>& list)
@@ -232,96 +242,6 @@ bool contains(const QString& name, const std::initializer_list<const char *>& li
   return false;
 }
 
-QString buildPathNoCase(const QStringList& paths)
-{
-
-  // Use the same for macOS since case sensitive file systems can cause problems
-#if defined(Q_OS_WIN32)
-  return buildPath(paths);
-
-#else
-  QDir dir;
-  QString file;
-
-  int i = 0;
-  for(const QString& path : paths)
-  {
-    if(i == 0)
-      // First path element
-      dir = path;
-    else
-    {
-      // Get entries that match exacly the next path element
-      QStringList entries = dir.entryList({path});
-
-      if(entries.isEmpty())
-      {
-        // Nothing found - do an expensive manual compare
-        bool found = false;
-        entries = dir.entryList();
-
-        for(const QString& str: entries)
-        {
-          if(str.compare(path, Qt::CaseInsensitive) == 0)
-          {
-            // Found something - use it as the single entry
-            entries.clear();
-            entries.append(str);
-            found = true;
-            break;
-          }
-        }
-
-        if(!found)
-          // Nothing found when searching case insensitive
-          entries.clear();
-      }
-
-      if(!entries.isEmpty())
-      {
-        if(QFileInfo(dir.path() + SEP + entries.first()).isDir())
-        {
-          // Directory exists - change into it
-          if(!dir.cd(entries.first()))
-            break;
-        }
-        else
-        {
-          // Is a file - add by name simply
-          file = entries.first();
-          break;
-        }
-      }
-      else
-        // Nothing found - add potentially wrong case name
-        dir = dir.path() + SEP + path;
-    }
-    i++;
-  }
-
-  if(file.isEmpty())
-    return dir.path();
-  else
-    return dir.path() + SEP + file;
-
-#endif
-}
-
-QString buildPath(const QStringList& paths)
-{
-  QString retval;
-
-  int i = 0;
-  for(const QString& path : paths)
-  {
-    if(i > 0)
-      retval += SEP;
-    retval += path;
-    i++;
-  }
-  return retval;
-}
-
 QString blockText(const QStringList& texts, int maxItemsPerLine, const QString& itemSeparator,
                   const QString& lineSeparator)
 {
@@ -351,26 +271,49 @@ QString elideTextShort(const QString& str, int maxLength)
   return str;
 }
 
-QString elideTextShortMiddle(const QString& str, int maxLength)
+QString elideTextShortLeft(const QString& str, int maxLength)
 {
   if(str.size() > maxLength)
+    return QObject::tr("…", "Dots used to shorten texts") + str.right(maxLength - 1);
+
+  return str;
+}
+
+QString elideTextShortMiddle(const QString& str, int maxLength)
+{
+  if(maxLength / 2 + maxLength / 2 + 1 < str.size()) // Avoid same size replacement due to round down
     return str.left(maxLength / 2) + QObject::tr("…", "Dots used to shorten texts") + str.right(maxLength / 2);
 
   return str;
 }
 
-QString elideTextLinesShort(QString str, int maxLines, int maxLength)
+QString elideTextLinesShort(QString str, int maxLines, int maxLength, bool compressEmpty, bool ellipseLastLine)
 {
   QStringList lines;
   QTextStream stream(&str, QIODevice::ReadOnly);
 
   int i = 0;
-  while(!stream.atEnd() && ++i < maxLines)
-    lines.append(maxLength > 0 ? elideTextShort(stream.readLine(), maxLength) : stream.readLine());
+  while(!stream.atEnd())
+  {
+    QString line = stream.readLine();
+    if(compressEmpty)
+    {
+      line = line.simplified();
+      if(line.isEmpty())
+        continue;
+    }
 
-  if(i >= maxLines)
+    if(i++ >= maxLines)
+      break;
+
+    lines.append(maxLength > 0 ? elideTextShort(line, maxLength) : line);
+  }
+
+  if(i > maxLines)
     return lines.join(QObject::tr("\n", "Linefeed used to shorten large texts")) +
-           QObject::tr("\n…", "Linefeed and dots used to shorten texts");
+           (ellipseLastLine ?
+            QObject::tr("\n…", "Linefeed and dots used to shorten texts") :
+            QObject::tr("…", "Linefeed and dots used to shorten texts"));
   else
     return lines.join(QObject::tr("\n", "Linefeed used to shorten large texts"));
 }
@@ -525,7 +468,7 @@ QString tempDir()
   return QStandardPaths::standardLocations(QStandardPaths::TempLocation).first();
 }
 
-QStringList numberVectorToStrList(const QVector<int>& vector)
+QStringList intVectorToStrList(const QVector<int>& vector)
 {
   QStringList retval;
   for(int value : vector)
@@ -533,7 +476,15 @@ QStringList numberVectorToStrList(const QVector<int>& vector)
   return retval;
 }
 
-QVector<int> strListToNumberVector(const QStringList& strings, bool *ok)
+QStringList floatVectorToStrList(const QVector<float>& vector)
+{
+  QStringList retval;
+  for(float value : vector)
+    retval.append(QString::number(value));
+  return retval;
+}
+
+QVector<int> strListToIntVector(const QStringList& strings, bool *ok)
 {
   if(ok != nullptr)
     *ok = true;
@@ -551,7 +502,25 @@ QVector<int> strListToNumberVector(const QStringList& strings, bool *ok)
   return retval;
 }
 
-QStringList numberSetToStrList(const QSet<int>& set)
+QVector<float> strListToFloatVector(const QStringList& strings, bool *ok)
+{
+  if(ok != nullptr)
+    *ok = true;
+  QVector<float> retval;
+  for(const QString& str : strings)
+  {
+    bool localOk;
+    float val = str.toFloat(&localOk);
+
+    if(!localOk && ok != nullptr)
+      *ok = false;
+
+    retval.append(val);
+  }
+  return retval;
+}
+
+QStringList intSetToStrList(const QSet<int>& set)
 {
   QStringList retval;
   for(int value : set)
@@ -559,7 +528,15 @@ QStringList numberSetToStrList(const QSet<int>& set)
   return retval;
 }
 
-QSet<int> strListToNumberSet(const QStringList& strings, bool *ok)
+QStringList floatSetToStrList(const QSet<float>& set)
+{
+  QStringList retval;
+  for(float value : set)
+    retval.append(QString::number(value));
+  return retval;
+}
+
+QSet<int> strListToIntSet(const QStringList& strings, bool *ok)
 {
   if(ok != nullptr)
     *ok = true;
@@ -577,7 +554,25 @@ QSet<int> strListToNumberSet(const QStringList& strings, bool *ok)
   return retval;
 }
 
-QStringList numberStrHashToStrList(const QHash<int, QString>& hash)
+QSet<float> strListToFloatSet(const QStringList& strings, bool *ok)
+{
+  if(ok != nullptr)
+    *ok = true;
+  QSet<float> retval;
+  for(const QString& str : strings)
+  {
+    bool localOk;
+    float val = str.toFloat(&localOk);
+
+    if(!localOk && ok != nullptr)
+      *ok = false;
+
+    retval.insert(val);
+  }
+  return retval;
+}
+
+QStringList intStrHashToStrList(const QHash<int, QString>& hash)
 {
   QStringList retval;
 
@@ -589,7 +584,19 @@ QStringList numberStrHashToStrList(const QHash<int, QString>& hash)
   return retval;
 }
 
-QHash<int, QString> strListToNumberStrHash(const QStringList& strings, bool *ok)
+QStringList floatStrHashToStrList(const QHash<float, QString>& hash)
+{
+  QStringList retval;
+
+  for(auto i = hash.begin(); i != hash.end(); ++i)
+  {
+    retval.append(QString::number(i.key()));
+    retval.append(i.value());
+  }
+  return retval;
+}
+
+QHash<int, QString> strListToIntStrHash(const QStringList& strings, bool *ok)
 {
   Q_ASSERT((strings.size() % 2) == 0);
 
@@ -610,7 +617,28 @@ QHash<int, QString> strListToNumberStrHash(const QStringList& strings, bool *ok)
   return retval;
 }
 
-QStringList numberStrMapToStrList(const QMap<int, QString>& map)
+QHash<float, QString> strListToFloatStrHash(const QStringList& strings, bool *ok)
+{
+  Q_ASSERT((strings.size() % 2) == 0);
+
+  if(ok != nullptr)
+    *ok = true;
+
+  QHash<float, QString> retval;
+  for(int i = 0; i < strings.size() - 1; i += 2)
+  {
+    bool localOk;
+    float val = strings.at(i).toFloat(&localOk);
+
+    if(!localOk && ok != nullptr)
+      *ok = false;
+
+    retval.insert(val, strings.at(i + 1));
+  }
+  return retval;
+}
+
+QStringList intStrMapToStrList(const QMap<int, QString>& map)
 {
   QStringList retval;
 
@@ -622,7 +650,19 @@ QStringList numberStrMapToStrList(const QMap<int, QString>& map)
   return retval;
 }
 
-QMap<int, QString> strListToNumberStrMap(const QStringList& strings, bool *ok)
+QStringList floatStrMapToStrList(const QMap<float, QString>& map)
+{
+  QStringList retval;
+
+  for(auto i = map.begin(); i != map.end(); ++i)
+  {
+    retval.append(QString::number(i.key()));
+    retval.append(i.value());
+  }
+  return retval;
+}
+
+QMap<int, QString> strListToIntStrMap(const QStringList& strings, bool *ok)
 {
   Q_ASSERT((strings.size() % 2) == 0);
 
@@ -634,6 +674,27 @@ QMap<int, QString> strListToNumberStrMap(const QStringList& strings, bool *ok)
   {
     bool localOk;
     int val = strings.at(i).toInt(&localOk);
+
+    if(!localOk && ok != nullptr)
+      *ok = false;
+
+    retval.insert(val, strings.at(i + 1));
+  }
+  return retval;
+}
+
+QMap<float, QString> strListToFloatStrMap(const QStringList& strings, bool *ok)
+{
+  Q_ASSERT((strings.size() % 2) == 0);
+
+  if(ok != nullptr)
+    *ok = true;
+
+  QMap<float, QString> retval;
+  for(int i = 0; i < strings.size() - 1; i += 2)
+  {
+    bool localOk;
+    float val = strings.at(i).toFloat(&localOk);
 
     if(!localOk && ok != nullptr)
       *ok = false;
@@ -685,9 +746,326 @@ QString strJoin(const QStringList& list, const QString& sep, const QString& last
   return retval;
 }
 
-QString buildPathNoCase(QString path)
+QString buildPath(const QStringList& paths)
 {
-  return buildPathNoCase(path.replace('\\', '/').split('/'));
+  return paths.join(SEP);
+}
+
+QString buildPathNoCase(const QStringList& paths)
+{
+
+  // Use the same for macOS since case sensitive file systems can cause problems
+#if defined(Q_OS_WIN32)
+  return buildPath(paths);
+
+#else
+  QDir dir;
+  QString file;
+
+  int i = 0;
+  for(const QString& path : paths)
+  {
+    if(i == 0)
+      // First path element
+      dir = path;
+    else
+    {
+      // Get entries that match exacly the next path element
+      QStringList entries = dir.entryList({path});
+
+      if(entries.isEmpty())
+      {
+        // Nothing found - do an expensive manual compare
+        bool found = false;
+        entries = dir.entryList();
+
+        for(const QString& str : entries)
+        {
+          if(str.compare(path, Qt::CaseInsensitive) == 0)
+          {
+            // Found something - use it as the single entry
+            entries.clear();
+            entries.append(str);
+            found = true;
+            break;
+          }
+        }
+
+        if(!found)
+          // Nothing found when searching case insensitive
+          entries.clear();
+      }
+
+      if(!entries.isEmpty())
+      {
+        if(QFileInfo(dir.path() + SEP + entries.first()).isDir())
+        {
+          // Directory exists - change into it
+          if(!dir.cd(entries.first()))
+            break;
+        }
+        else
+        {
+          // Is a file - add by name simply
+          file = entries.first();
+          break;
+        }
+      }
+      else
+        // Nothing found - add potentially wrong case name
+        dir = dir.path() + SEP + path;
+    }
+    i++;
+  }
+
+  if(file.isEmpty())
+    return dir.path();
+  else
+    return dir.path() + SEP + file;
+
+#endif
+}
+
+QString checkDirMsg(const QFileInfo& dir, int maxLength)
+{
+  if(dir.filePath().isEmpty())
+  {
+    qWarning() << Q_FUNC_INFO << "Dir is empty";
+    return QObject::tr("Directory name is empty.");
+  }
+  else
+  {
+    QString shortName = elideTextShortLeft(dir.absoluteFilePath(), maxLength);
+    if(!dir.exists())
+    {
+      qWarning() << Q_FUNC_INFO << "Directory" << dir.absoluteFilePath() << "does not exist";
+      return QObject::tr("Directory \"%1\" does not exist.").arg(shortName);
+    }
+    else
+    {
+      if(!dir.isDir())
+      {
+        qWarning() << Q_FUNC_INFO << "File" << dir.absoluteFilePath() << "is not a directory";
+        return QObject::tr("File \"%1\" is not a directory.").arg(shortName);
+      }
+      else if(!dir.isReadable())
+      {
+        qWarning() << Q_FUNC_INFO << "Directory" << dir.absoluteFilePath() << "is not readable";
+        return QObject::tr("Directory \"%1\" is not readable.").arg(shortName);
+      }
+    }
+  }
+  return QString();
+}
+
+QString checkFileMsg(const QFileInfo& file, int maxLength)
+{
+  if(file.filePath().isEmpty())
+  {
+    qWarning() << Q_FUNC_INFO << "Filepath is empty";
+    return QObject::tr("Filepath is empty.");
+  }
+  else
+  {
+    QString shortName = elideTextShortLeft(file.absoluteFilePath(), maxLength);
+    if(!file.exists())
+    {
+      qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "does not exist";
+      return QObject::tr("File \"%1\" does not exist.").arg(shortName);
+    }
+    else
+    {
+      if(!file.isFile())
+      {
+        qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "is a directory";
+        return QObject::tr("File \"%1\" is a directory.").arg(shortName);
+      }
+      else if(!file.isReadable())
+      {
+        qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "is not readable";
+        return QObject::tr("File \"%1\" is not readable.").arg(shortName);
+      }
+      else if(file.size() == 0)
+      {
+        qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "is empty";
+        return QObject::tr("File \"%1\" is empty.").arg(shortName);
+      }
+    }
+  }
+  return QString();
+}
+
+bool checkDir(const QFileInfo& dir, bool warn)
+{
+  if(dir.filePath().isEmpty())
+  {
+    if(warn)
+      qWarning() << Q_FUNC_INFO << "Dir is empty";
+    return false;
+  }
+  else if(!dir.exists())
+  {
+    if(warn)
+      qWarning() << Q_FUNC_INFO << "Directory" << dir.absoluteFilePath() << "does not exist";
+    return false;
+  }
+  else
+  {
+    if(!dir.isDir())
+    {
+      if(warn)
+        qWarning() << Q_FUNC_INFO << "File" << dir.absoluteFilePath() << "is not a directory";
+      return false;
+    }
+    else if(!dir.isReadable())
+    {
+      if(warn)
+        qWarning() << Q_FUNC_INFO << "Directory" << dir.absoluteFilePath() << "is not readable";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool checkFile(const QFileInfo& file, bool warn)
+{
+  if(file.filePath().isEmpty())
+  {
+    if(warn)
+      qWarning() << Q_FUNC_INFO << "Filepath is empty";
+    return false;
+  }
+  else if(!file.exists())
+  {
+    if(warn)
+      qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "does not exist";
+    return false;
+  }
+  else
+  {
+    if(!file.isFile())
+    {
+      if(warn)
+        qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "is a directory";
+      return false;
+    }
+    else if(!file.isReadable())
+    {
+      if(warn)
+        qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "is not readable";
+      return false;
+    }
+    else if(file.size() == 0)
+    {
+      if(warn)
+        qWarning() << Q_FUNC_INFO << "File" << file.absoluteFilePath() << "is empty";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool strStartsWith(const QStringList& list, const QString& str)
+{
+  for(const QString& s : list)
+  {
+    if(str.startsWith(s))
+      return true;
+  }
+
+  return false;
+}
+
+bool strAnyStartsWith(const QStringList& list, const QString& str)
+{
+  for(const QString& s : list)
+  {
+    if(s.startsWith(str))
+      return true;
+  }
+
+  return false;
+}
+
+QString removeNonPrintable(const QString& str)
+{
+  QString trimmed;
+  for(QChar c : str)
+  {
+    if(c.isPrint())
+      trimmed.append(c);
+  }
+  return trimmed;
+}
+
+QString removeNonAlphaNum(const QString& str)
+{
+  QString trimmed;
+  for(QChar c : str)
+  {
+    if(c.isLetterOrNumber() || c.isPunct())
+      trimmed.append(c);
+  }
+  return trimmed;
+}
+
+QString normalizeStr(const QString& str)
+{
+  // Decompose string into base characters and diacritics
+  QString retval, norm = str.normalized(QString::NormalizationForm_KD);
+  for(QChar c : norm)
+  {
+    // Remove diacritics
+    if(c.category() != QChar::Mark_NonSpacing)
+    {
+      if(c == '?')
+        // Native question mark - keep
+        retval.append(c);
+      else
+      {
+        // Convert ot latin
+        c = c.toLatin1();
+
+        // Add only if latin conversion did not produce garbage
+        if(c != '?' && c.isPrint() && c.unicode() < 126)
+          retval.append(c);
+      }
+    }
+  }
+  return retval;
+}
+
+QDateTime correctDate(int day, int hour, int minute)
+{
+  QDateTime dateTime = QDateTime::currentDateTimeUtc();
+  dateTime.setDate(QDate(dateTime.date().year(), dateTime.date().month(), day));
+  dateTime.setTime(QTime(hour, minute));
+
+  // Keep subtracting months until it is not in the future and the day matches
+  // but not more than one year to avoid endless loops
+  int months = 0;
+  while((dateTime > QDateTime::currentDateTimeUtc() || day != dateTime.date().day()) && months < 12)
+    dateTime = dateTime.addMonths(-(++months));
+  return dateTime;
+}
+
+QDateTime correctDateLocal(int dayOfYear, int secondsOfDayLocal, int secondsOfDayUtc)
+{
+  QDate localDate = QDate(QDate::currentDate().year(), 1, 1).addDays(dayOfYear);
+
+  int offsetSeconds = 0;
+  if(secondsOfDayLocal - secondsOfDayUtc <= -12 * 3600)
+    // UTC is one day back
+    offsetSeconds = secondsOfDayLocal - secondsOfDayUtc + 24 * 3600;
+  else if(secondsOfDayLocal - secondsOfDayUtc >= 12 * 3600)
+    // UTC is one day forward
+    offsetSeconds = secondsOfDayLocal - secondsOfDayUtc - 24 * 3600;
+  else
+    // UTC is same day as local
+    offsetSeconds = secondsOfDayLocal - secondsOfDayUtc;
+
+  return QDateTime(localDate, QTime::fromMSecsSinceStartOfDay(secondsOfDayLocal * 1000),
+                   Qt::OffsetFromUTC, offsetSeconds);
 }
 
 } // namespace atools

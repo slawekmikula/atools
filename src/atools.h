@@ -25,6 +25,7 @@
 #include <QPointF>
 
 class QFile;
+class QFileInfo;
 
 namespace atools {
 
@@ -63,6 +64,7 @@ bool contains(const TYPE& str, const std::initializer_list<TYPE>& list)
 bool strContains(const QString& name, const std::initializer_list<QString>& list);
 bool strContains(const QString& name, const std::initializer_list<const char *>& list);
 bool strContains(const QString& name, const std::initializer_list<char>& list);
+bool strContains(const QString& name, const QStringList& list);
 
 /* Concatenates all non empty strings in the list with the given separator */
 QString strJoin(const QStringList& list, const QString& sep);
@@ -70,6 +72,12 @@ QString strJoin(const QStringList& list, const QString& sep);
 /* Concatenates all non empty strings in the list with the given separator and uses lastSep for separation.
  *  Example: strJoin({"A", "B", "C"}, ", ", " and ") => "A, B and C" */
 QString strJoin(const QStringList& list, const QString& sep, const QString& lastSep, const QString& suffix = QString());
+
+/* true if str starts with any of the strings in the list  */
+bool strStartsWith(const QStringList& list, const QString& str);
+
+/* true if any string in the list starts str */
+bool strAnyStartsWith(const QStringList& list, const QString& str);
 
 template<typename TYPE1, typename TYPE2>
 void convertList(QList<TYPE1>& dest, const QList<TYPE2>& src)
@@ -88,11 +96,25 @@ void convertVector(QVector<TYPE1>& dest, const QVector<TYPE2>& src)
 /* Read whole file into a string */
 QString strFromFile(const QString& filename);
 
+/* Unicode normalizes string and replaces special characters like ö->o.
+ * Removes all diacritics.
+ * Omits characters if they cannot be transformed to ASCII. */
+QString normalizeStr(const QString& str);
+
 /* Cuts text at the right and uses combined ellipsis character */
 QString elideTextShort(const QString& str, int maxLength);
 
+/* Cuts text at the left and uses combined ellipsis character */
+QString elideTextShortLeft(const QString& str, int maxLength);
+
 /* Cuts text in the center and uses combined ellipsis character */
 QString elideTextShortMiddle(const QString& str, int maxLength);
+
+/* Remove any non printable characters from string */
+QString removeNonPrintable(const QString& str);
+
+/* Remove all characters not being letter, number or punctuation */
+QString removeNonAlphaNum(const QString& str);
 
 /* Turns a string list into a string of blocked text.
  * E.g:
@@ -103,14 +125,14 @@ QString elideTextShortMiddle(const QString& str, int maxLength);
 QString blockText(const QStringList& texts, int maxItemsPerLine, const QString& itemSeparator,
                   const QString& lineSeparator);
 
-/* Cut linefeed separated text. Return maxLength lines where \n... is included  */
-QString elideTextLinesShort(QString str, int maxLines, int maxLength = 0);
+/* Cut linefeed separated text. Return maxLength lines where \n... is included
+ * @param compressEmpty Remove empty lines before applying elide
+ * @param ellipseLastLine Put ellipse on separate line */
+QString elideTextLinesShort(QString str, int maxLines, int maxLength = 0, bool compressEmpty = false,
+                            bool ellipseLastLine = true);
 
 /* Concatenates all paths parts with the QDir::separator() and fetches names correcting the case */
 QString buildPathNoCase(const QStringList& paths);
-
-/* As above but splits at slash and backslash */
-QString buildPathNoCase(QString path);
 
 /* Simply concatenates all paths parts with the QDir::separator() */
 QString buildPath(const QStringList& paths);
@@ -158,6 +180,12 @@ template<typename TYPE>
 Q_DECL_CONSTEXPR TYPE minmax(TYPE minValue, TYPE maxValue, TYPE value)
 {
   return std::min(std::max(value, minValue), maxValue);
+}
+
+/* Char as string at position or empty string if out of bounds */
+inline QString strAt(const QString& str, int index)
+{
+  return index >= 0 && index < str.size() ? str.at(index) : QString();
 }
 
 /* Returns 0 if without throwing an exception if index is not valid */
@@ -244,7 +272,8 @@ const TYPE *firstOrNull(const QVector<TYPE>& list)
 }
 
 /* Remove all special characters from the filename that can disturb any filesystem */
-QString cleanFilename(const QString& filename);
+static const int MAX_FILENAME_CHARS = 150;
+QString cleanFilename(const QString& filename, int maxLength = MAX_FILENAME_CHARS);
 
 Q_DECL_CONSTEXPR int absInt(int value)
 {
@@ -348,12 +377,31 @@ QString ratingString(int value, int maxValue);
 /* Convert 24 hour and minute time string to time (500, 2314, 12:30) */
 QTime timeFromHourMinStr(const QString& timeStr);
 
+/* Keep subtracting months for incomplete date and time until it is not in the future and the day matches
+ * but not more than one year to avoid endless loops */
+QDateTime correctDate(int day, int hour, int minute);
+
+/* Determines timezone offset by seconds of day and creates local time from incomplete values based on current year.
+ * Time can be converted to UTC which might also roll over the date. */
+QDateTime correctDateLocal(int dayOfYear, int secondsOfDayLocal, int secondsOfDayUtc);
+
 template<typename TYPE>
-int sign(TYPE t)
+Q_DECL_CONSTEXPR int sign(TYPE t)
 {
   if(static_cast<double>(t) > 0.)
     return 1;
   else if(static_cast<double>(t) < 0.)
+    return -1;
+  else
+    return 0;
+}
+
+template<>
+Q_DECL_CONSTEXPR int sign<int>(int t)
+{
+  if(t > 0)
+    return 1;
+  else if(t < 0)
     return -1;
   else
     return 0;
@@ -449,22 +497,33 @@ inline void freeArray(TYPE *& arr)
   arr = nullptr;
 }
 
-/* Functions to convert integer lists and vectors to string lists and back.
+/* Functions to convert integer and float lists and vectors to string lists and back.
  * Can be used to store configuration lists.
- *  ok has the same meaning as in QString::toInt() */
-QStringList numberVectorToStrList(const QVector<int>& vector);
-QVector<int> strListToNumberVector(const QStringList& strings, bool *ok = nullptr);
-QStringList numberSetToStrList(const QSet<int>& set);
-QSet<int> strListToNumberSet(const QStringList& strings, bool *ok = nullptr);
+ * Uses the C locale for number conversion.
+ * ok has the same meaning as in QString::toInt() */
+QStringList intVectorToStrList(const QVector<int>& vector);
+QVector<int> strListToIntVector(const QStringList& strings, bool *ok = nullptr);
+QStringList intSetToStrList(const QSet<int>& set);
+QSet<int> strListToIntSet(const QStringList& strings, bool *ok = nullptr);
 
-/* Functions to convert integer/string maps and hashes to string lists and back.
+QStringList floatVectorToStrList(const QVector<float>& vector);
+QVector<float> strListToFloatVector(const QStringList& strings, bool *ok = nullptr);
+QStringList floatSetToStrList(const QSet<float>& set);
+QSet<float> strListToFloatSet(const QStringList& strings, bool *ok = nullptr);
+
+/* Functions to convert integer/float/string maps and hashes to string lists and back.
  * Can be used to store configuration lists.
  * ok has the same meaning as in QString::toInt().
  * string list contains consecutive key/value pairs. */
-QStringList numberStrHashToStrList(const QHash<int, QString>& hash);
-QHash<int, QString> strListToNumberStrHash(const QStringList& strings, bool *ok = nullptr);
-QStringList numberStrMapToStrList(const QMap<int, QString>& map);
-QMap<int, QString> strListToNumberStrMap(const QStringList& strings, bool *ok = nullptr);
+QStringList intStrHashToStrList(const QHash<int, QString>& hash);
+QHash<int, QString> strListToIntStrHash(const QStringList& strings, bool *ok = nullptr);
+QStringList intStrMapToStrList(const QMap<int, QString>& map);
+QMap<int, QString> strListToIntStrMap(const QStringList& strings, bool *ok = nullptr);
+
+QStringList floatStrHashToStrList(const QHash<float, QString>& hash);
+QHash<float, QString> strListToFloatStrHash(const QStringList& strings, bool *ok = nullptr);
+QStringList floatStrMapToStrList(const QMap<float, QString>& map);
+QMap<float, QString> strListToFloatStrMap(const QStringList& strings, bool *ok = nullptr);
 
 /* Get well known system folders from QStandardPaths. */
 QString documentsDir();
@@ -472,6 +531,15 @@ QString downloadDir();
 QString tempDir();
 QString desktopDir();
 QString homeDir();
+
+/* Collect error messages for files or folders if they are readable, not empty and more.
+ * Returns empty string if all is ok. */
+QString checkDirMsg(const QFileInfo& dir, int maxLength = 80);
+QString checkFileMsg(const QFileInfo& file, int maxLength = 80);
+
+/* Same as above but prints warnings into the log if flag is set and returns false if something is not ok */
+bool checkFile(const QFileInfo& file, bool warn = true);
+bool checkDir(const QFileInfo& dir, bool warn = true);
 
 } // namespace atools
 

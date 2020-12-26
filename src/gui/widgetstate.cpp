@@ -38,6 +38,7 @@
 #include <QTableView>
 #include <QTreeView>
 #include <QTextEdit>
+#include <QActionGroup>
 #include <QTableWidget>
 #include <QTreeWidget>
 #include <QListWidget>
@@ -106,6 +107,17 @@ void WidgetState::save(const QObject *widget) const
     {
       if(a->isCheckable())
         saveWidget(s, a, a->isChecked());
+    }
+    else if(const QActionGroup *ag = dynamic_cast<const QActionGroup *>(widget))
+    {
+      QStringList actions;
+      for(const QAction *a : ag->actions())
+      {
+        if(a->isChecked())
+          actions.append(a->objectName());
+      }
+      actions.removeAll(QString());
+      saveWidget(s, ag, actions);
     }
     else if(const QHeaderView *hv = dynamic_cast<const QHeaderView *>(widget))
       saveWidget(s, hv, hv->saveState());
@@ -264,6 +276,19 @@ void WidgetState::restore(QObject *widget) const
           a->setChecked(v.toBool());
       }
     }
+    else if(QActionGroup *ag = dynamic_cast<QActionGroup *>(widget))
+    {
+      QVariant v = loadWidget(s, ag);
+      if(v.isValid())
+      {
+        QStringList actions(v.toStringList());
+        for(QAction *a : ag->actions())
+        {
+          if(actions.contains(a->objectName()))
+            a->setChecked(true);
+        }
+      }
+    }
     else if(QHeaderView *hv = dynamic_cast<QHeaderView *>(widget))
     {
       QVariant v = loadWidget(s, widget);
@@ -337,10 +362,20 @@ void WidgetState::restore(QObject *widget) const
       if(v.isValid())
       {
         mw->restoreState(v.toByteArray());
+
         if(positionRestoreMainWindow)
-          mw->move(s.valueVar(keyPrefix + "_" + mw->objectName() + "_pos", mw->pos()).toPoint());
+        {
+          QString key = keyPrefix + "_" + mw->objectName() + "_pos";
+          if(s.contains(key))
+            mw->move(s.valueVar(key, mw->pos()).toPoint());
+        }
+
         if(sizeRestoreMainWindow)
-          mw->resize(s.valueVar(keyPrefix + "_" + mw->objectName() + "_size", mw->sizeHint()).toSize());
+        {
+          QString key = keyPrefix + "_" + mw->objectName() + "_size";
+          if(s.contains(key))
+            mw->resize(s.valueVar(key, mw->sizeHint()).toSize());
+        }
 
         if(stateRestoreMainWindow)
           if(s.valueVar(keyPrefix + "_" + mw->objectName() + "_maximized", false).toBool())
@@ -350,7 +385,9 @@ void WidgetState::restore(QObject *widget) const
     else if(QDialog *dlg = dynamic_cast<QDialog *>(widget))
     {
       // dlg->move(s.valueVar(keyPrefix + "_" + dlg->objectName() + "_pos", dlg->pos()).toPoint());
-      dlg->resize(s.valueVar(keyPrefix + "_" + dlg->objectName() + "_size", dlg->sizeHint()).toSize());
+      QString key = keyPrefix + "_" + dlg->objectName() + "_size";
+      if(s.contains(key))
+        dlg->resize(s.valueVar(key, dlg->sizeHint()).toSize());
     }
     else if(QSplitter *sp = dynamic_cast<QSplitter *>(widget))
     {

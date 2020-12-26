@@ -54,7 +54,8 @@ public:
    * Initialize the process for one airport before it is stored in the database.
    */
   void init(const atools::fs::bgl::DeleteAirport *deleteAirportRec,
-            const atools::fs::bgl::Airport *airport, int airportId);
+            const atools::fs::bgl::Airport *airport, int airportId, const QString& city, const QString& state,
+            const QString& country, const QString& region);
 
   /*
    * Start the update or removal process of airports before the new airport is stored in the databas.
@@ -105,7 +106,6 @@ private:
   *updateRunwayStmt = nullptr,
   *deleteParkingStmt = nullptr,
   *updateParkingStmt = nullptr,
-  *deleteDeleteApStmt = nullptr,
   *fetchRunwayEndIdStmt = nullptr,
   *updateApprochRwIds = nullptr,
   *deleteRunwayEndStmt = nullptr,
@@ -115,8 +115,6 @@ private:
   *deleteApproachStmt = nullptr, *updateApproachStmt = nullptr,
   *deleteAirportStmt = nullptr, *selectAirportStmt = nullptr,
   *deleteApronStmt = nullptr, *updateApronStmt = nullptr,
-  *deleteApronLightStmt = nullptr, *updateApronLightStmt = nullptr,
-  *deleteFenceStmt = nullptr, *updateFenceStmt = nullptr,
   *deleteHelipadStmt = nullptr, *updateHelipadStmt = nullptr,
   *deleteStartStmt = nullptr, *updateStartStmt = nullptr,
   *deleteTaxiPathStmt = nullptr, *updateTaxiPathStmt = nullptr,
@@ -133,6 +131,8 @@ private:
 
   bool prevHasApproach = false, prevHasApron = false, prevHasCom = false, prevHasHelipad = false,
        prevHasTaxi = false, prevHasStart = false, prevHasRunways = false, isAddon = false;
+  QString prevName, prevCity, prevState, prevCountry, prevRegion,
+          curName, curCity, curState, curCountry, curRegion;
   int previousRating = 0;
   bool hasPrevious = false;
   int prevAirportId = 0;

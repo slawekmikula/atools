@@ -22,11 +22,8 @@
 -- Order is important to avoid fk conflicts
 
 -- drop airport facilities
-drop table if exists delete_airport;
 drop table if exists parking;
 drop table if exists taxi_path;
-drop table if exists fence;
-drop table if exists apron_light;
 drop table if exists apron;
 drop table if exists start;
 drop table if exists helipad;

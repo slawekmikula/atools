@@ -15,52 +15,48 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#ifndef ATOOLS_BGL_AP_APRONLIGHT_H
-#define ATOOLS_BGL_AP_APRONLIGHT_H
+#ifndef ATOOLS_LAYOUTJSON_H
+#define ATOOLS_LAYOUTJSON_H
 
-#include "fs/bgl/record.h"
-#include "fs/bgl/ap/rw/runway.h"
-#include "fs/bgl/bglposition.h"
+#include <QStringList>
 
 namespace atools {
 namespace fs {
-namespace bgl {
+namespace scenery {
 
 /*
- * Apron edge light geometry. Subrecord of airport.
+ * Reads MSFS layout file and extracts the locations for BGL and material "Library.xml" files.
+ * Paths are kept relative as read from file.
  */
-class ApronEdgeLight :
-  public atools::fs::bgl::Record
+class LayoutJson
 {
 public:
-  ApronEdgeLight(const atools::fs::NavDatabaseOptions *options, atools::io::BinaryStream *bs);
-  virtual ~ApronEdgeLight();
+  void read(const QString& filename);
 
-  /*
-   * @return coordinate list that is used with the edge index list
-   */
-  const QList<atools::fs::bgl::BglPosition>& getVertices() const
+  void clear()
   {
-    return vertices;
+    bglPaths.clear();
+    materialPaths.clear();
   }
 
-  /*
-   * @return edgeindex list where each two index entries refer into the vertex list for one edge
-   */
-  const QList<int>& getEdgeIndex() const
+  /* Relative paths for all BGL files */
+  const QStringList& getBglPaths() const
   {
-    return edges;
+    return bglPaths;
+  }
+
+  /* Relative paths for all Library.xml files */
+  const QStringList& getMaterialPaths() const
+  {
+    return materialPaths;
   }
 
 private:
-  friend QDebug operator<<(QDebug out, const atools::fs::bgl::ApronEdgeLight& record);
-
-  QList<atools::fs::bgl::BglPosition> vertices;
-  QList<int> edges;
+  QStringList bglPaths, materialPaths;
 };
 
-} // namespace bgl
+} // namespace scenery
 } // namespace fs
 } // namespace atools
 
-#endif // ATOOLS_BGL_AP_APRONLIGHT_H
+#endif // ATOOLS_LAYOUTJSON_H

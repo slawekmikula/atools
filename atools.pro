@@ -155,6 +155,7 @@ message(-----------------------------------)
 HEADERS += \
   src/atools.h \
   src/exception.h \
+  src/fs/bgl/surface.h \
   src/fs/sc/connecthandler.h \
   src/fs/sc/datareaderthread.h \
   src/fs/sc/fgconnecthandler.h \
@@ -169,6 +170,11 @@ HEADERS += \
   src/fs/sc/simconnectuseraircraft.h \
   src/fs/sc/weatherrequest.h \
   src/fs/sc/xpconnecthandler.h \
+  src/fs/scenery/contentxml.h \
+  src/fs/scenery/languagejson.h \
+  src/fs/scenery/layoutjson.h \
+  src/fs/scenery/manifestjson.h \
+  src/fs/scenery/materiallib.h \
   src/fs/userdata/airspacereaderbase.h \
   src/fs/userdata/airspacereaderopenair.h \
   src/fs/userdata/datamanagerbase.h \
@@ -193,6 +199,7 @@ HEADERS += \
   src/gui/actionstatesaver.h \
   src/gui/actiontextsaver.h \
   src/gui/application.h \
+  src/gui/clicktooltiphandler.h \
   src/gui/consoleapplication.h \
   src/gui/dialog.h \
   src/gui/dockwidgethandler.h \
@@ -274,6 +281,7 @@ HEADERS += \
 SOURCES += \
   src/atools.cpp \
   src/exception.cpp \
+  src/fs/bgl/surface.cpp \
   src/fs/sc/connecthandler.cpp \
   src/fs/sc/datareaderthread.cpp \
   src/fs/sc/fgconnecthandler.cpp \
@@ -288,6 +296,11 @@ SOURCES += \
   src/fs/sc/simconnectuseraircraft.cpp \
   src/fs/sc/weatherrequest.cpp \
   src/fs/sc/xpconnecthandler.cpp \
+  src/fs/scenery/contentxml.cpp \
+  src/fs/scenery/languagejson.cpp \
+  src/fs/scenery/layoutjson.cpp \
+  src/fs/scenery/manifestjson.cpp \
+  src/fs/scenery/materiallib.cpp \
   src/fs/userdata/airspacereaderbase.cpp \
   src/fs/userdata/airspacereaderopenair.cpp \
   src/fs/userdata/datamanagerbase.cpp \
@@ -311,6 +324,7 @@ SOURCES += \
   src/gui/actionstatesaver.cpp \
   src/gui/actiontextsaver.cpp \
   src/gui/application.cpp \
+  src/gui/clicktooltiphandler.cpp \
   src/gui/consoleapplication.cpp \
   src/gui/dialog.cpp \
   src/gui/dockwidgethandler.cpp \
@@ -364,7 +378,7 @@ SOURCES += \
   src/templateengine/templatecache.cpp \
   src/templateengine/templateloader.cpp \
   src/track/trackdownloader.cpp \
-src/track/trackreader.cpp \
+  src/track/trackreader.cpp \
   src/track/tracktypes.cpp \
   src/util/csvreader.cpp \
   src/util/filesystemwatcher.cpp \
@@ -397,13 +411,11 @@ HEADERS += \
   src/fs/bgl/ap/approachtypes.h \
   src/fs/bgl/ap/apron.h \
   src/fs/bgl/ap/apron2.h \
-  src/fs/bgl/ap/apronedgelight.h \
   src/fs/bgl/ap/com.h \
   src/fs/bgl/ap/del/deleteairport.h \
   src/fs/bgl/ap/del/deletecom.h \
   src/fs/bgl/ap/del/deleterunway.h \
   src/fs/bgl/ap/del/deletestart.h \
-  src/fs/bgl/ap/fence.h \
   src/fs/bgl/ap/helipad.h \
   src/fs/bgl/ap/jetway.h \
   src/fs/bgl/ap/parking.h \
@@ -456,12 +468,9 @@ HEADERS += \
   src/fs/db/ap/airportwriter.h \
   src/fs/db/ap/approachlegwriter.h \
   src/fs/db/ap/approachwriter.h \
-  src/fs/db/ap/apronlightwriter.h \
   src/fs/db/ap/apronwriter.h \
   src/fs/db/ap/comwriter.h \
-  src/fs/db/ap/deleteairportwriter.h \
   src/fs/db/ap/deleteprocessor.h \
-  src/fs/db/ap/fencewriter.h \
   src/fs/db/ap/helipadwriter.h \
   src/fs/db/ap/legbasewriter.h \
   src/fs/db/ap/parkingwriter.h \
@@ -540,13 +549,11 @@ SOURCES += \
   src/fs/bgl/ap/approachtypes.cpp \
   src/fs/bgl/ap/apron.cpp \
   src/fs/bgl/ap/apron2.cpp \
-  src/fs/bgl/ap/apronedgelight.cpp \
   src/fs/bgl/ap/com.cpp \
   src/fs/bgl/ap/del/deleteairport.cpp \
   src/fs/bgl/ap/del/deletecom.cpp \
   src/fs/bgl/ap/del/deleterunway.cpp \
   src/fs/bgl/ap/del/deletestart.cpp \
-  src/fs/bgl/ap/fence.cpp \
   src/fs/bgl/ap/helipad.cpp \
   src/fs/bgl/ap/jetway.cpp \
   src/fs/bgl/ap/parking.cpp \
@@ -599,12 +606,9 @@ SOURCES += \
   src/fs/db/ap/airportwriter.cpp \
   src/fs/db/ap/approachlegwriter.cpp \
   src/fs/db/ap/approachwriter.cpp \
-  src/fs/db/ap/apronlightwriter.cpp \
   src/fs/db/ap/apronwriter.cpp \
   src/fs/db/ap/comwriter.cpp \
-  src/fs/db/ap/deleteairportwriter.cpp \
   src/fs/db/ap/deleteprocessor.cpp \
-  src/fs/db/ap/fencewriter.cpp \
   src/fs/db/ap/helipadwriter.cpp \
   src/fs/db/ap/legbasewriter.cpp \
   src/fs/db/ap/parkingwriter.cpp \

@@ -25,6 +25,8 @@ extern "C" {
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <locale.h>
+
 
 #include "wmm/GeomagnetismHeader.h"
 #ifdef WRITE_GEOID_BUFFER
@@ -85,6 +87,10 @@ void MagDecTool::init(int year, int month)
   // Put coeffizients file into a temporary, so that the C code can read it
   atools::io::TempFile temp(QString(":/atools/resources/wmm/WMM.COF"), "_wmm.cof");
 
+  // Have to change locale to C since sscanf which is used in the geomagnetism library is locale dependent
+  char *oldlocale = setlocale(LC_NUMERIC, nullptr);
+  setlocale(LC_NUMERIC, "C");
+
 #if defined(Q_OS_WIN32)
   // Windows fopen uses local charset for filename - convert UTF-8 to UTF-16 and use wfopen
   wchar_t *path = new wchar_t[static_cast<unsigned int>(temp.getFilePath().size()) + 1];
@@ -122,6 +128,9 @@ void MagDecTool::init(int year, int month)
   std::memcpy(magdecGrid, declinations.data(), static_cast<unsigned int>(declinations.size()) * sizeof(float));
 
   fclose(f);
+
+  // Reset locale to previous value
+  setlocale(LC_NUMERIC, oldlocale);
 
 #if defined(Q_OS_WIN32)
   delete[] path;
@@ -214,13 +223,13 @@ QVector<float> MAG_GridInternal(int year, int month, MAGtype_MagneticModel *magn
   MAGtype_CoordGeodetic minimum;
   minimum.phi = -90.;
   minimum.lambda = -180.;
-  minimum.HeightAboveGeoid = minimum.HeightAboveEllipsoid = 0.f;
+  minimum.HeightAboveGeoid = minimum.HeightAboveEllipsoid = 0.;
   minimum.UseGeoid = 1;
 
   MAGtype_CoordGeodetic maximum;
   maximum.phi = 90.;
   maximum.lambda = 179.;
-  maximum.HeightAboveGeoid = maximum.HeightAboveEllipsoid = 0.f;
+  maximum.HeightAboveGeoid = maximum.HeightAboveEllipsoid = 0.;
   maximum.UseGeoid = 1;
 
   // Only one date - no range
@@ -239,7 +248,7 @@ QVector<float> MAG_GridInternal(int year, int month, MAGtype_MagneticModel *magn
 
   double cord_step_size = 1.;
   if(fabs(cord_step_size) < 1.0e-10)
-    cord_step_size = 99999.0;  // checks to make sure that the step_size is not too small
+    cord_step_size = 99999.0; // checks to make sure that the step_size is not too small
 
   numTerms = ((magneticModel->nMax + 1) * (magneticModel->nMax + 2) / 2);
   timedMagneticModel = MAG_AllocateModelMemory(numTerms);

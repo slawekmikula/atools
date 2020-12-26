@@ -50,7 +50,7 @@ void FileHistoryHandler::restoreState()
 
   // Convert all loaded paths to native
   for(int i = 0; i < filePaths.size(); i++)
-    filePaths[i] = QDir::toNativeSeparators(filePaths.at(i));
+    filePaths[i] = correctPath(filePaths.at(i));
 
   updateMenu();
 }
@@ -59,7 +59,8 @@ void FileHistoryHandler::addFile(const QString& filename)
 {
   if(!filename.isEmpty())
   {
-    QString nativeFilename = QDir::toNativeSeparators(filename);
+    // Also replace double separators
+    QString nativeFilename = correctPath((filename));
 
     // Remove file from list
     filePaths.removeAll(nativeFilename);
@@ -76,9 +77,14 @@ void FileHistoryHandler::addFile(const QString& filename)
   }
 }
 
+QString FileHistoryHandler::getTopFile() const
+{
+  return filePaths.value(0);
+}
+
 void FileHistoryHandler::removeFile(const QString& filename)
 {
-  filePaths.removeAll(QDir::toNativeSeparators(filename));
+  filePaths.removeAll(correctPath(filename));
   updateMenu();
 }
 
@@ -133,8 +139,8 @@ void FileHistoryHandler::updateMenu()
 #endif
 
     QAction *fileAction = recentMenu->addAction(fname);
-    fileAction->setToolTip(QDir::toNativeSeparators(filepath));
-    fileAction->setStatusTip(QDir::toNativeSeparators(filepath));
+    fileAction->setToolTip(filepath);
+    fileAction->setStatusTip(filepath);
     fileAction->setData(filepath);
     i++;
   }
@@ -142,6 +148,14 @@ void FileHistoryHandler::updateMenu()
   recentMenu->addSeparator();
   clearAction->setEnabled(!filePaths.isEmpty());
   recentMenu->addAction(clearAction);
+}
+
+QString FileHistoryHandler::correctPath(const QString& filename)
+{
+  const static QString SEP = QString(QDir::separator());
+  const static QString SEP_SEP = QString(QDir::separator()) + QString(QDir::separator());
+
+  return QDir::toNativeSeparators(filename).replace(SEP_SEP, SEP);
 }
 
 void FileHistoryHandler::clearMenu()

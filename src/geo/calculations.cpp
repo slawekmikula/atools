@@ -108,13 +108,20 @@ void arcFromPoints(const QLineF& line, const QPointF& center, bool left, QRectF 
 void calcArcLength(const atools::geo::Line& line, const atools::geo::Pos& center, bool left,
                    float *distance, atools::geo::LineString *lines)
 {
+  if(distance != nullptr)
+    *distance = 0.f;
+
+  if(line.getPos1().almostEqual(line.getPos2()))
+  {
+    if(lines != nullptr)
+      lines->append(line.getPos1());
+    return;
+  }
+
   float dist = center.distanceMeterTo(line.getPos1());
   float start = center.angleDegTo(line.getPos1());
   float end = center.angleDegTo(line.getPos2());
   float spanningAngle;
-
-  if(distance != nullptr)
-    *distance = 0.f;
 
   if(left)
   {
@@ -742,6 +749,44 @@ void registerMetaTypes()
   qRegisterMetaTypeStreamOperators<atools::geo::Rect>();
   qRegisterMetaTypeStreamOperators<atools::geo::Line>();
   qRegisterMetaTypeStreamOperators<atools::geo::LineString>();
+}
+
+bool isWestCourse(float lonx1, float lonx2)
+{
+  // Fix all the corner cases around the anti-meridian
+  if((almostEqual(lonx2, 180.f) && lonx1 < 0.f) || (almostEqual(lonx2, -180.f) && lonx1 > 0.f))
+    lonx2 = -lonx2;
+
+  if((almostEqual(lonx1, 180.f) && lonx2 < 0.f) || (almostEqual(lonx1, -180.f) && lonx2 > 0.f))
+    lonx1 = -lonx1;
+
+  // Either equal or -90/90 or 90/-90 where result is undefined
+  if(almostEqual(lonx1, lonx2) || almostEqual(angleAbsDiff(lonx1, lonx2), 180.f))
+    return false;
+
+  if(crossesAntiMeridian(lonx1, lonx2))
+    return lonx2 < 0.f ? (lonx1 > lonx2 + 360.f) : (lonx1 + 360.f > lonx2);
+  else
+    return lonx1 > lonx2;
+}
+
+bool isEastCourse(float lonx1, float lonx2)
+{
+  // Fix all the corner cases around the anti-meridian
+  if((almostEqual(lonx2, 180.f) && lonx1 < 0.f) || (almostEqual(lonx2, -180.f) && lonx1 > 0.f))
+    lonx2 = -lonx2;
+
+  if((almostEqual(lonx1, 180.f) && lonx2 < 0.f) || (almostEqual(lonx1, -180.f) && lonx2 > 0.f))
+    lonx1 = -lonx1;
+
+  // Either equal or -90/90 or 90/-90 where result is undefined
+  if(almostEqual(lonx1, lonx2) || almostEqual(angleAbsDiff(lonx1, lonx2), 180.f))
+    return false;
+
+  if(crossesAntiMeridian(lonx1, lonx2))
+    return lonx2 < 0.f ? (lonx1 < lonx2 + 360.f) : (lonx1 + 360.f < lonx2);
+  else
+    return lonx1 < lonx2;
 }
 
 } // namespace geo

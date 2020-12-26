@@ -15,36 +15,33 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#ifndef ATOOLS_FS_DB_APRONLIGHTWRITER_H
-#define ATOOLS_FS_DB_APRONLIGHTWRITER_H
+#ifndef LNM_CLICKTOOLTIPHANDLER_H
+#define LNM_CLICKTOOLTIPHANDLER_H
 
-#include "fs/db/writerbase.h"
-#include "fs/bgl/ap/apronedgelight.h"
+#include <QObject>
+
+class QLabel;
 
 namespace atools {
-namespace fs {
-namespace db {
+namespace gui {
 
-class ApronLightWriter :
-  public atools::fs::db::WriterBase<atools::fs::bgl::ApronEdgeLight>
+/*
+ * Catches events from a widget to show a tooltip on click.
+ */
+class ClickToolTipHandler :
+  public QObject
 {
 public:
-  ApronLightWriter(atools::sql::SqlDatabase& db, atools::fs::db::DataWriter& dataWriter)
-    : WriterBase(db, dataWriter, "apron_light")
-  {
-  }
+  ClickToolTipHandler(QLabel *parentLabel);
+  virtual ~ClickToolTipHandler() override;
 
-  virtual ~ApronLightWriter()
-  {
-  }
+private:
+  virtual bool eventFilter(QObject *object, QEvent *event) override;
 
-protected:
-  virtual void writeObject(const atools::fs::bgl::ApronEdgeLight *type) override;
-
+  QLabel *label;
 };
 
-} // namespace writer
-} // namespace fs
+} // namespace gui
 } // namespace atools
 
-#endif // ATOOLS_FS_DB_APRONLIGHTWRITER_H
+#endif // LNM_CLICKTOOLTIPHANDLER_H

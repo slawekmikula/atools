@@ -30,8 +30,11 @@ namespace gui {
 
 QHash<QString, QStringList> Application::reportFiles;
 QStringList Application::emailAddresses;
+QSet<QObject *> Application::tooltipExceptions;
+
 bool Application::showExceptionDialog = true;
 bool Application::restartProcess = false;
+bool Application::tooltipsDisabled = false;
 
 Application::Application(int& argc, char **argv, int)
   : QApplication(argc, argv)
@@ -52,11 +55,20 @@ Application::~Application()
   }
 }
 
+Application *Application::applicationInstance()
+{
+  return dynamic_cast<Application *>(QCoreApplication::instance());
+}
+
 bool Application::notify(QObject *receiver, QEvent *event)
 {
   try
   {
-    return QApplication::notify(receiver, event);
+    if(tooltipsDisabled && (event->type() == QEvent::ToolTip || event->type() == QEvent::ToolTipChange) &&
+       !tooltipExceptions.contains(receiver))
+      return false;
+    else
+      return QApplication::notify(receiver, event);
   }
   catch(std::exception& e)
   {
@@ -77,7 +89,7 @@ bool Application::notify(QObject *receiver, QEvent *event)
 QString Application::generalErrorMessage()
 {
   return tr("<b>If the problem persists or occurs during startup "
-              "delete all settings and database files of %4 and try again.</b><br/><br/>"
+              "delete all settings and database files of <i>%1</i> and try again.</b><br/><br/>"
               "<b>If you wish to report this error attach the log and configuration files "
                 "to your report, add all other available information and send it to one "
                 "of the contact addresses below.</b><br/>").arg(QApplication::applicationName());
@@ -91,6 +103,18 @@ void Application::sendFontChanged()
     emit app->fontChanged();
   else
     qWarning() << Q_FUNC_INFO << "app is null";
+}
+
+void Application::setTooltipsDisabled(const QList<QObject *>& exceptions)
+{
+  tooltipExceptions = exceptions.toSet();
+  tooltipsDisabled = true;
+}
+
+void Application::setTooltipsEnabled()
+{
+  tooltipExceptions.clear();
+  tooltipsDisabled = false;
 }
 
 void Application::handleException(const char *file, int line, const std::exception& e)

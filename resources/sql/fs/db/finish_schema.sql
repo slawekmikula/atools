@@ -21,13 +21,14 @@
 
 -- Drop temporary tables
 drop table if exists airway_temp;
-drop table if exists airway_point;
+drop table if exists tmp_airway_point;
+drop table if exists tmp_waypoint;
 drop table if exists tmp_waypoint_ap;
+drop table if exists tmp_waypoint_dfd;
 drop table if exists tmp_ndb_ap;
 drop table if exists tmp_vor_ap;
-drop table if exists waypoint_temp;
 
--- Create indexes on columns that are potentially used in searches
+-- Create indexes ontmp_waypoint are potentially used in searches
 create index if not exists idx_ils_ident on ils(ident);
 
 create index if not exists idx_airway_left_lonx on airway(left_lonx);
@@ -105,9 +106,6 @@ create index if not exists idx_airport_medium_rating on airport_medium(rating);
 create index if not exists idx_airport_medium_is_addon on airport_medium(is_addon);
 create index if not exists idx_airport_medium_is_3d on airport_medium(is_3d);
 
--------------------------------------------------------------------------------------------
-
-create index if not exists idx_taxi_path_type on taxi_path(type);
 
 -- Collect table and index statistics
 -- Disabled for now since it can cause queries to freeze

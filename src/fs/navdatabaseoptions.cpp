@@ -42,6 +42,13 @@ NavDatabaseOptions::ProgressCallbackType NavDatabaseOptions::getProgressCallback
   return progressCallback;
 }
 
+void NavDatabaseOptions::setLanguage(const QString& value)
+{
+  language = value.isEmpty() ? "en-US" : value;
+  language.replace('_', '-');
+  language = language.section('-', 0, 0) + "-" + language.section('-', 1, 1).toUpper();
+}
+
 void NavDatabaseOptions::addToDirectoryExcludes(const QStringList& filter)
 {
   addToFilter(createFilterList(filter), dirExcludesGui);
@@ -204,7 +211,8 @@ void NavDatabaseOptions::loadFromSettings(QSettings& settings)
 {
   setReadInactive(settings.value("Options/IgnoreInactive", false).toBool());
   setVerbose(settings.value("Options/Verbose", false).toBool());
-  setResolveAirways(settings.value("Options/ResolveAirways", true).toBool());
+  setResolveAirways(settings.value("Options/ResolveRoutes", true).toBool());
+  setLanguage(settings.value("Options/MsfsAirportLanguage", "en-US").toString());
   setCreateRouteTables(settings.value("Options/CreateRouteTables", false).toBool());
   setDatabaseReport(settings.value("Options/DatabaseReport", true).toBool());
   setDeletes(settings.value("Options/ProcessDelete", true).toBool());
@@ -213,6 +221,7 @@ void NavDatabaseOptions::loadFromSettings(QSettings& settings)
   setWriteIncompleteObjects(settings.value("Options/SaveIncomplete", true).toBool());
   setAutocommit(settings.value("Options/Autocommit", false).toBool());
   setFlag(type::BASIC_VALIDATION, settings.value("Options/BasicValidation", false).toBool());
+  setFlag(type::AIRPORT_VALIDATION, settings.value("Options/AirportValidation", false).toBool());
   setFlag(type::VACUUM_DATABASE, settings.value("Options/VacuumDatabase", true).toBool());
   setFlag(type::ANALYZE_DATABASE, settings.value("Options/AnalyzeDatabase", true).toBool());
   setFlag(type::DROP_INDEXES, settings.value("Options/DropAllIndexes", false).toBool());
@@ -445,12 +454,6 @@ QString type::navDbObjectTypeToString(type::NavDbObjectType type)
     case APRON2:
       return "APRON2";
 
-    case APRONLIGHT:
-      return "APRONLIGHT";
-
-    case FENCE:
-      return "FENCE";
-
     case TAXIWAY:
       return "TAXIWAY";
 
@@ -503,10 +506,6 @@ type::NavDbObjectType type::stringToNavDbObjectType(const QString& typeStr)
     return APRON;
   else if(typeStr == "APRON2")
     return APRON2;
-  else if(typeStr == "APRONLIGHT")
-    return APRONLIGHT;
-  else if(typeStr == "FENCE")
-    return FENCE;
   else if(typeStr == "TAXIWAY")
     return TAXIWAY;
   else if(typeStr == "VEHICLE")

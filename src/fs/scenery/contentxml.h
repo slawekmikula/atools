@@ -15,36 +15,52 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#ifndef ATOOLS_FS_DB_FENCEWRITER_H
-#define ATOOLS_FS_DB_FENCEWRITER_H
+#ifndef ATOOLS_CONTENTXML_H
+#define ATOOLS_CONTENTXML_H
 
-#include "fs/db/writerbase.h"
-#include "fs/bgl/ap/fence.h"
+#include <QApplication>
+#include <QVector>
 
 namespace atools {
 namespace fs {
-namespace db {
+namespace scenery {
 
-class FenceWriter :
-  public atools::fs::db::WriterBase<atools::fs::bgl::Fence>
+class SceneryArea;
+
+/*
+ * Reads MSFS content.xml file and creates a list of scenery areas.
+ * This will include only the official packages.
+ */
+class ContentXml
 {
+  Q_DECLARE_TR_FUNCTIONS(ContentXml)
+
 public:
-  FenceWriter(atools::sql::SqlDatabase& db, atools::fs::db::DataWriter& dataWriter)
-    : WriterBase(db, dataWriter, "fence")
+  /* Read the file and add fs-base and fs-base-nav packages */
+  void read(const QString& filename);
+
+  /* Fill with default values without acessing the actual file */
+  void fillDefault();
+
+  const QList<atools::fs::scenery::SceneryArea>& getAreas() const
   {
+    return areaEntries;
   }
 
-  virtual ~FenceWriter()
+  QList<atools::fs::scenery::SceneryArea>& getAreas()
   {
+    return areaEntries;
   }
 
-protected:
-  virtual void writeObject(const bgl::Fence *type) override;
+private:
+  friend QDebug operator<<(QDebug out, const atools::fs::scenery::ContentXml& cfg);
 
+  QList<atools::fs::scenery::SceneryArea> areaEntries;
+  int number = 0;
 };
 
-} // namespace writer
+} // namespace scenery
 } // namespace fs
 } // namespace atools
 
-#endif // ATOOLS_FS_DB_FENCEWRITER_H
+#endif // ATOOLS_CONTENTXML_H

@@ -24,13 +24,16 @@ namespace atools {
 namespace fs {
 namespace scenery {
 
+/* Collect scenery area entries consisting of more than one BGL files from scenery.cfg
+ * Also used to collect entries from add-on.xml files. */
 class SceneryArea
 {
 public:
   SceneryArea();
 
-  /* Constructed from P3D add-on packages */
+  /* Constructed from FSX and P3D add-on packages */
   SceneryArea(int areaNum, int layerNum, const QString& sceneryTitle, const QString& sceneryLocalPath);
+  SceneryArea(int num, const QString& sceneryTitle, const QString& sceneryLocalPath);
 
   /*
    * @return true to indicate that the scenery should be rendered by default.
@@ -91,8 +94,10 @@ public:
     return title;
   }
 
+  /* Create a tile based on number if empty */
   void fixTitle();
 
+  /* true if add-on should be loaded on top of all others */
   bool isHighPriority() const
   {
     return highPriority;
@@ -103,12 +108,102 @@ public:
     highPriority = value;
   }
 
+  void setAreaNumber(int value)
+  {
+    areaNumber = value;
+  }
+
+  void setTextureId(int value)
+  {
+    textureId = value;
+  }
+
+  void setLayer(int value)
+  {
+    layer = value;
+  }
+
+  void setActive(bool value = true)
+  {
+    active = value;
+  }
+
+  void setRequired(bool value = true)
+  {
+    required = value;
+  }
+
+  void setTitle(const QString& value)
+  {
+    title = value;
+  }
+
+  void setRemotePath(const QString& value)
+  {
+    remotePath = value;
+  }
+
+  void setLocalPath(const QString& value)
+  {
+    localPath = value;
+  }
+
+  void setExclude(const QString& value)
+  {
+    exclude = value;
+  }
+
+  /* MSFS only. Indicates special handling for third-party navdata update scenery areas. */
+  bool isNavdataThirdPartyUpdate() const
+  {
+    return navdataThirdPartyUpdate;
+  }
+
+  void setNavdataThirdPartyUpdate(bool value = true)
+  {
+    navdataThirdPartyUpdate = value;
+  }
+
+  /* MSFS only. Indicates special handling for "fs-base-nav" navdata update scenery area
+   * which add procedures and COM. */
+  bool isNavdata() const
+  {
+    return navdata;
+  }
+
+  void setNavdata(bool value = true)
+  {
+    navdata = value;
+  }
+
+  /* MSFS only. Indicates that add-on is stored in the path "Community". */
+  bool isCommunity() const
+  {
+    return community;
+  }
+
+  void setCommunity(bool value = true)
+  {
+    community = value;
+  }
+
+  /* MSFS only. Indicates that add-on is stored in the path "Official" and "Steam" or "OneStore" .*/
+  bool isAddOn() const
+  {
+    return addOn;
+  }
+
+  void setAddOn(bool value = true)
+  {
+    addOn = value;
+  }
+
 private:
-  friend class SceneryCfg;
   friend QDebug operator<<(QDebug out, const atools::fs::scenery::SceneryArea& area);
 
   int areaNumber = 0, textureId = 0, layer = 0;
-  bool active = false, required = false, highPriority = false;
+  bool active = false, required = false, highPriority = false, addOn = false, community = false,
+       navdataThirdPartyUpdate = false, navdata = false; /* Only MSFS */
   QString title, remotePath, localPath, exclude;
 };
 

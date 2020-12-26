@@ -32,7 +32,7 @@ class ProgressHandler;
 namespace db {
 
 /*
- * Reads from the airway_point table that was filled with waypoint record data and connects the
+ * Reads from the tmp_airway_point table that was filled with waypoint record data and connects the
  * waypoint lists to airways that are stored in table airway.
  */
 class AirwayResolver
@@ -44,9 +44,10 @@ public:
   virtual ~AirwayResolver();
 
   /*
-   * Build airways from airway_point table that uses only idents and region codes to connect waypoints to a chain.
+   * Build airways from tmp_airway_point table that uses only idents and region codes to connect waypoints to a chain.
    * This process has to run after all BGL files are loaded since the airways cross multiple
    * scenery areas and BGL files.
+   * Reads from "tmp_airway_point" joined with "waypoint" and writes to table "airway".
    * @return true if the process was aborted
    */
   bool run(int numReportSteps);
@@ -54,17 +55,18 @@ public:
   struct AirwaySegment;
 
   /*
-   * Assigns the waypoint_id in table airway_point. Not needed for all compilations.
+   * Assigns the waypoint_id in table tmp_airway_point. Not needed for all compilations.
    */
   void assignWaypointIds();
 
-  void setMaxAirwaySegmentLength(int value)
+  /* Maximum length before creating a new fragment in meter */
+  void setMaxAirwaySegmentLengthNm(int value)
   {
-    maxAirwaySegmentLength = value;
+    maxAirwaySegmentLengthNm = value;
   }
 
 private:
-  int maxAirwaySegmentLength = 1000;
+  int maxAirwaySegmentLengthNm = 8000;
 
   typedef std::pair<QString, QVariant> TypeRowValue;
   typedef QVector<TypeRowValue> TypeRowValueVector;

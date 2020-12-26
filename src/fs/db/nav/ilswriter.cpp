@@ -24,6 +24,8 @@
 #include "sql/sqlquery.h"
 #include "fs/navdatabaseoptions.h"
 #include "fs/db/runwayindex.h"
+#include "fs/db/meta/bglfilewriter.h"
+#include "fs/db/meta/sceneryareawriter.h"
 #include "geo/calculations.h"
 #include "atools.h"
 
@@ -42,6 +44,13 @@ void IlsWriter::writeObject(const Ils *type)
   if(getOptions().isVerbose())
     qDebug() << "Writing ILS " << type->getIdent() << " name " << type->getName();
 
+  if(type->getIdent().isEmpty())
+  {
+    qWarning() << Q_FUNC_INFO << "Found ILS with empty ident in file"
+               << getDataWriter().getBglFileWriter()->getCurrentFilepath();
+    return;
+  }
+
   bind(":ils_id", getNextId());
   bind(":ident", type->getIdent());
   bind(":name", type->getName());
@@ -54,16 +63,26 @@ void IlsWriter::writeObject(const Ils *type)
 
   const bgl::BglPosition& pos = type->getPosition();
   const Localizer *loc = type->getLocalizer();
+  float headingTrue = 0.f;
 
   if(loc != nullptr)
   {
-    int length = atools::geo::nmToMeter(FEATHER_LEN_NM);
+
+    if(getOptions().getSimulatorType() == atools::fs::FsPaths::MSFS)
+      // MSFS uses magnetic course - turn to true
+      headingTrue = atools::geo::normalizeCourse(loc->getHeading() + type->getMagVar());
+    else
+      // FSX and P3D use true course
+      headingTrue = loc->getHeading();
+
+    float locHeading = atools::geo::opposedCourseDeg(headingTrue);
+
+    float length = atools::geo::nmToMeter(FEATHER_LEN_NM);
     // Calculate the display of the ILS feather
-    float ilsHeading = atools::geo::normalizeCourse(atools::geo::opposedCourseDeg(loc->getHeading()));
-    Pos p1 = pos.getPos().endpoint(length, ilsHeading - loc->getWidth() / 2.f);
-    Pos p2 = pos.getPos().endpoint(length, ilsHeading + loc->getWidth() / 2.f);
+    Pos p1 = pos.getPos().endpoint(length, locHeading - loc->getWidth() / 2.f);
+    Pos p2 = pos.getPos().endpoint(length, locHeading + loc->getWidth() / 2.f);
     float featherWidth = p1.distanceMeterTo(p2);
-    Pos pmid = pos.getPos().endpoint(length - featherWidth / 2, ilsHeading);
+    Pos pmid = pos.getPos().endpoint(length - featherWidth / 2.f, locHeading);
 
     bind(":end1_lonx", p1.getLonX());
     bind(":end1_laty", p1.getLatY());
@@ -127,7 +146,7 @@ void IlsWriter::writeObject(const Ils *type)
   if(loc != nullptr)
   {
     bind(":loc_runway_name", loc->getRunwayName());
-    bind(":loc_heading", loc->getHeading());
+    bind(":loc_heading", headingTrue);
     bind(":loc_width", loc->getWidth());
   }
   else

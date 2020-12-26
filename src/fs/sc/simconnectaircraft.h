@@ -297,14 +297,24 @@ public:
     return debug;
   }
 
-  /* true if empty default initialized object */
+  /* true if not empty default initialized object */
   bool isValid() const
   {
     return position.isValid();
   }
 
+  /* true if not empty default initialized object and not still at pos 0/0 */
+  bool isFullyValid() const
+  {
+    return isValid() && !(groundSpeedKts < 5.0f && position.almostEqual(atools::geo::Pos(0.f, 0.f), 1.f));
+  }
+
   /* Compares only registration, type and others */
   bool isSameAircraft(const SimConnectAircraft& other) const;
+
+  /* Update all names which allows to replace translation key in MSFS with local translated aircraft names */
+  void updateAircraftNames(const QString& airplaneTypeParam, const QString& airplaneAirlineParam,
+                           const QString& airplaneTitleParam, const QString& airplaneModelParam);
 
 private:
   friend class atools::fs::sc::SimConnectHandler;
